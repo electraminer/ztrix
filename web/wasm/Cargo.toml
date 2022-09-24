@@ -10,3 +10,4 @@ path = "wasm.rs"
 ztrix = {path = "../../../ztrix"}
 wasm-bindgen = "0.2.63"
 web-sys = { version = "0.3", "features" = [ "Window", "Document", "HtmlElement", "HtmlCanvasElement", "CanvasRenderingContext2d", "CssStyleDeclaration", "console", "Location", "UrlSearchParams", "MouseEvent"]}
+yew = "0.19"

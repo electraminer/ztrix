@@ -1,30 +1,22 @@
-use ztrix::piece::active_piece::ActivePiece;
-use ztrix::mino::Mino;
-use ztrix::position::position::Position;
-use ztrix::position::rotation::Rotation;
-use web_sys::UrlSearchParams;
-use wasm_bindgen::JsCast;
 extern crate wasm_bindgen;
-use web_sys::Element;
 use wasm_bindgen::prelude::*;
-extern crate web_sys;
-use web_sys::Document;
-use web_sys::HtmlCanvasElement;
-use web_sys::CanvasRenderingContext2d;
+use wasm_bindgen::JsCast;
 
+extern crate yew;
+use yew::prelude::*;
 
 extern crate ztrix;
 use ztrix::board::Board;
+use ztrix::position::position::Position;
+use ztrix::position::rotation::Rotation;
 use ztrix::piece::piece_type::PieceType;
+use ztrix::piece::active_piece::ActivePiece;
+use ztrix::mino::Mino;
 
-type JsResult<T> = Result<T, JsValue>;
-
-trait RenderHtml<E>
-where	E: Into<Element> {
-	fn init_html(&self, document: &Document) -> JsResult<E>;
-
-	fn update_html(&self, elem: &E) -> JsResult<()>;
-}
+extern crate web_sys;
+use web_sys::CanvasRenderingContext2d;
+use web_sys::HtmlCanvasElement;
+use web_sys::UrlSearchParams;
 
 fn get_piece_from_char(chr: char) -> Option<PieceType> {
 	match chr {
@@ -88,26 +80,71 @@ fn get_piece_css_color(piece: PieceType) -> &'static str {
 	}
 }
 
-impl RenderHtml<HtmlCanvasElement> for Board {
-	fn init_html(&self, document: &Document)
-			-> JsResult<HtmlCanvasElement> {
-		let elem = document.create_element("canvas")?
-		.dyn_into::<HtmlCanvasElement>()?;
-		elem.set_class_name("board");
-    	Ok(elem)
-	}
+struct Model {
+	board_canvas: NodeRef,
+    board: Board,
+    piece: ActivePiece,
+}
 
-	fn update_html(&self, elem: &HtmlCanvasElement)
-			-> JsResult<()> {
-		// rescale component to match its size
-		let width = elem.offset_width() as f64;
-		let height = elem.offset_height() as f64;
-		elem.set_width(width as u32);
-		elem.set_height(height as u32);
-		// get the canvas drawing context
-		let context = elem.get_context("2d")?.expect(
-			"context element should be supported")
-		.dyn_into::<CanvasRenderingContext2d>()?;
+impl Component for Model {
+    type Message = ();
+    type Properties = ();
+
+    fn create(_ctx: &Context<Self>) -> Self {
+    	// get the url parameters
+    	let window = web_sys::window()
+			.expect("should have a window");
+		let location = window.location();
+		let search = location.search()
+			.expect("location should have a search");
+		let params = UrlSearchParams::new_with_str(
+				search.as_str())
+			.expect("search should be valid parameters");
+		// generate board from parameters
+		let board = match params.get("board") {
+			Some(string) => get_board_from_str(&string),
+			None => Board::new(),
+		};
+		// generate active piece from parameter
+		let piece_type = match params.get("piece") {
+			Some(string) => string.chars().next().and_then(
+				|c| get_piece_from_char(c))
+				.unwrap_or(PieceType::Z),
+			None => PieceType::Z,
+		};
+		let piece = ActivePiece::spawn(piece_type,
+			Rotation::Zero);
+		// create model
+        Self {
+    		board_canvas: NodeRef::default(),
+            board: board,
+            piece: piece,
+        }
+    }
+
+
+    fn view(&self, _ctx: &Context<Self>) -> Html {
+        html! {
+            <canvas class="board"
+            	ref={self.board_canvas.clone()}>
+            </canvas>
+        }
+    }
+
+     fn rendered(&mut self, _ctx: &Context<Self>, _first: bool) {
+        // update canvas size
+        let canvas = self.board_canvas.cast::<HtmlCanvasElement>()
+        	.expect("element should be a canvas");
+		let width = canvas.offset_width() as f64;
+		let height = canvas.offset_height() as f64;
+		canvas.set_width(width as u32);
+		canvas.set_height(height as u32);
+		// get rendering context
+		let context = canvas.get_context("2d")
+			.expect("canvas should have context")
+			.expect("context element should be supported")
+		.dyn_into::<CanvasRenderingContext2d>()
+			.expect("element should be a context");
 		// get the size of each individual mino
 		let size = width / 10.0;
 		// draw the background
@@ -117,11 +154,11 @@ impl RenderHtml<HtmlCanvasElement> for Board {
 		context.set_fill_style(&JsValue::from_str("#222"));
     	context.fill_rect(0.0, height - size * 20.0,
     		width, size * 20.0);
-    	// draw each mino
+    	// draw each board mino
     	for y in 0..26 {
     		for x in 0..10 {
     			let pos = Position::new(x, y);
-    			if let Some(mino) = self[pos] {
+    			if let Some(mino) = self.board[pos] {
 					context.set_fill_style(&JsValue::from_str(
 						get_mino_css_color(mino)));
 					context.fill_rect(
@@ -131,70 +168,34 @@ impl RenderHtml<HtmlCanvasElement> for Board {
     			}
     		}
     	}
-		Ok(())
-	}
-}
-
-fn draw_piece_on_board(piece: &ActivePiece, board: &Board,
-		elem: &HtmlCanvasElement) -> JsResult<()> {
-	// get the canvas drawing context
-	let context = elem.get_context("2d")?.expect(
-		"context element should be supported")
-	.dyn_into::<CanvasRenderingContext2d>()?;
-	// get the size of each individual mino
-	let width = elem.offset_width() as f64;
-	let height = elem.offset_height() as f64;
-	let size = width / 10.0;
-	// draw each mino
-	context.set_fill_style(&JsValue::from_str(
-		get_piece_css_color(piece.get_type())));
-	for pos in piece.get_mino_positions() {
-		context.fill_rect(
-			size * pos.x as f64,
-			height - size * (pos.y + 1) as f64,
-			size + 0.5, size + 0.5);
-	}
-	context.set_global_alpha(0.5);
-	for pos in piece.get_ghost(board).get_mino_positions() {
-		context.fill_rect(
-			size * pos.x as f64,
-			height - size * (pos.y + 1) as f64,
-			size + 0.5, size + 0.5);
-	}
-	Ok(())
+		// draw the active piece
+		context.set_fill_style(&JsValue::from_str(
+			get_piece_css_color(self.piece.get_type())));
+		for pos in self.piece.get_mino_positions() {
+			context.fill_rect(
+				size * pos.x as f64,
+				height - size * (pos.y + 1) as f64,
+				size + 0.5, size + 0.5);
+		}
+		// draw the ghost piece
+		context.set_global_alpha(0.5);
+		for pos in self.piece.get_ghost(&self.board)
+			.get_mino_positions() {
+			context.fill_rect(
+				size * pos.x as f64,
+				height - size * (pos.y + 1) as f64,
+				size + 0.5, size + 0.5);
+		}
+    }
 }
 
 #[wasm_bindgen(start)]
-pub fn main() -> Result<(), JsValue> {
+pub fn run_app() {
 	let window = web_sys::window()
 		.expect("should have a window");
-
-	let location = window.location();
-	let search = location.search()?;
-	let params = UrlSearchParams::new_with_str(search.as_str())?;
-	let piece_type = match params.get("piece") {
-		Some(string) => string.chars().next().and_then(
-			|c| get_piece_from_char(c))
-			.unwrap_or(PieceType::Z),
-		None => PieceType::Z,
-	};
-	let piece = ActivePiece::spawn(piece_type,
-		Rotation::Zero);
-
-	let board = match params.get("board") {
-		Some(string) => get_board_from_str(&string),
-		None => Board::new(),
-	};
-
 	let document = window.document()
 		.expect("window should have a document");
 	let game = document.get_element_by_id("game")
 		.expect("document should have a #game div");
-
-	let elem = board.init_html(&document)?;
-	game.append_child(&elem)?;
-	board.update_html(&elem)?;
-	draw_piece_on_board(&piece, &board, &elem)?;
-
-	Ok(())
+    yew::start_app_in_element::<Model>(game);
 }
