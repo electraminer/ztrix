@@ -1,3 +1,5 @@
+
+
 extern crate wasm_bindgen;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
@@ -8,6 +10,7 @@ use yew::prelude::*;
 extern crate ztrix;
 use ztrix::board::Board;
 use ztrix::position::position::Position;
+use ztrix::position::vector::Vector;
 use ztrix::position::rotation::Rotation;
 use ztrix::piece::piece_type::PieceType;
 use ztrix::piece::active_piece::ActivePiece;
@@ -80,14 +83,30 @@ fn get_piece_css_color(piece: PieceType) -> &'static str {
 	}
 }
 
+#[derive(Copy, Clone)]
+enum Msg {
+	MoveLeft,
+	MoveRight,
+	MoveDown,
+}
+
 struct Model {
 	board_canvas: NodeRef,
     board: Board,
     piece: ActivePiece,
 }
 
+fn controls(string: &str) -> Option<Msg> {
+    match string {
+    	"KeyK" => Some(Msg::MoveLeft),
+    	"Semicolon" => Some(Msg::MoveRight),
+        "ShiftLeft" => Some(Msg::MoveDown),
+        _ => None
+    }
+}
+
 impl Component for Model {
-    type Message = ();
+    type Message = Msg;
     type Properties = ();
 
     fn create(_ctx: &Context<Self>) -> Self {
@@ -122,16 +141,35 @@ impl Component for Model {
         }
     }
 
+    fn update(&mut self, _ctx: &Context<Self>,
+    		msg: Msg) -> bool {
+    	match msg {
+    		Msg::MoveLeft => self.piece.try_move(
+    				&self.board, Vector::ONE_LEFT),
+    		Msg::MoveRight => self.piece.try_move(
+    				&self.board, Vector::ONE_RIGHT),
+    		Msg::MoveDown => self.piece.try_move(
+    				&self.board, Vector::ONE_DOWN),
+    	}
+    }
 
-    fn view(&self, _ctx: &Context<Self>) -> Html {
+
+    fn view(&self, ctx: &Context<Self>) -> Html {
+    	let callback = ctx.link()
+    		.batch_callback(move |e: KeyboardEvent| {
+    			controls(e.code().as_str())
+    		});
         html! {
             <canvas class="board"
-            	ref={self.board_canvas.clone()}>
+            	ref={self.board_canvas.clone()}
+            	tabindex=1
+            	onkeydown={callback}>
             </canvas>
         }
     }
 
-     fn rendered(&mut self, _ctx: &Context<Self>, _first: bool) {
+     fn rendered(&mut self, _ctx: &Context<Self>,
+     		_first: bool) {
         // update canvas size
         let canvas = self.board_canvas.cast::<HtmlCanvasElement>()
         	.expect("element should be a canvas");
