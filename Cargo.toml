@@ -1,0 +1,9 @@
+[workspace]
+members = [
+	"web/server",
+	"web/wasm",
+]
+
+[package]
+name = "ztrix"
+version = "0.1.0"

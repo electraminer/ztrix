@@ -1,0 +1,10 @@
+[package]
+name = "server"
+version = "0.1.0"
+
+[[bin]]
+name = "server"
+path = "main.rs"
+
+[dependencies]
+rouille = "3.5.0"
