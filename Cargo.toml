@@ -1,0 +1,18 @@
+[workspace]
+members = [
+	"web/server",
+	"web/wasm",
+]
+
+[package]
+name = "ztrix"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+getrandom = {features = ["js"]}
+rand = "0.8.5"
+enumset = "1.0"
