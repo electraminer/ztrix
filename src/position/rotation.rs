@@ -2,7 +2,7 @@ use std::ops::Add;
 use std::ops::Neg;
 use std::ops::Sub;
 
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub enum Rotation {
 	Zero,
 	Clockwise,

@@ -5,15 +5,13 @@ use rand::prelude::*;
 use enumset::EnumSet;
 use enumset::EnumSetIter;
 
-pub struct BagRandomizer<R>
-where	R: Rng {
+pub struct BagRandomizer {
 	set: EnumSet<PieceType>,
-	rng: R,
+	rng: ThreadRng,
 }
 
-impl<R> BagRandomizer<R>
-where	R: Rng {
-	pub fn new(rng: R) -> BagRandomizer<R> {
+impl BagRandomizer {
+	pub fn new(rng: ThreadRng) -> BagRandomizer {
 		BagRandomizer{
 			set: EnumSet::all(),
 			rng: rng,

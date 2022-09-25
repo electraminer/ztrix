@@ -1,0 +1,38 @@
+html, body, #content {
+	width: 100%;
+	height: 100%;
+	margin: 0;	
+	display: flex;
+	background-color: #111;
+}
+
+.game {
+	flex: 1;
+	display: flex;
+	justify-content: center;
+	gap: 10px;
+	padding: 20px 0;
+}
+
+.sidebar {
+	aspect-ratio: 3/26;
+	padding: 10px 0;
+}
+
+.board {
+	aspect-ratio: 10/26;
+}
+
+.hold, .queue {
+	width: 100%;
+	top: 25%;
+	position: relative;
+}
+
+.hold {
+	aspect-ratio: 4/3;
+}
+
+.queue {
+	aspect-ratio: 4/16;
+}

@@ -6,59 +6,21 @@ extern crate yew;
 use yew::prelude::*;
 
 extern crate ztrix;
-use ztrix::board::Board;
+use ztrix::game::Action;
+
 use ztrix::position::Position;
-use ztrix::position::Vector;
+
 use ztrix::position::Rotation;
 use ztrix::piece::PieceType;
-use ztrix::piece::ActivePiece;
+
 use ztrix::mino::Mino;
-use ztrix::randomizer::BagRandomizer;
+
+use ztrix::game::Game;
 
 extern crate web_sys;
 use web_sys::CanvasRenderingContext2d;
 use web_sys::HtmlCanvasElement;
 use web_sys::UrlSearchParams;
-
-extern crate rand;
-use rand::prelude::*;
-
-fn get_piece_from_char(chr: char) -> Option<PieceType> {
-	match chr {
-		's' | 'S' => Some(PieceType::S),
-		'z' | 'Z' => Some(PieceType::Z),
-		'j' | 'J' => Some(PieceType::J),
-		't' | 'T' => Some(PieceType::T),
-		'l' | 'L' => Some(PieceType::L),
-		'o' | 'O' => Some(PieceType::O),
-		'i' | 'I' => Some(PieceType::I),
-		_ => None,
-	}
-}
-
-fn get_mino_from_char(chr: char) -> Option<Mino> {
-	if let Some(piece) = get_piece_from_char(chr) {
-		return Some(Mino::Piece(piece));
-	}
-	if matches!(chr, 'g' | 'G') {
-		return Some(Mino::Gray);
-	}
-	return None
-}
-
-fn get_board_from_str(string: &str) -> Board {
-	let mut board = Board::new();
-	let mut iter = string.chars();
-	for y in 0..26 {
-		for x in 0..10 {
-			let pos = Position::new(x, y);
-			if let Some(chr) = iter.next() {
-				board[pos] = get_mino_from_char(chr)
-			}
-		}
-	}
-	board
-}
 
 fn get_mino_css_color(mino: Mino) -> &'static str {
 	match mino {
@@ -85,33 +47,15 @@ fn get_piece_css_color(piece: PieceType) -> &'static str {
 	}
 }
 
-#[derive(Copy, Clone)]
 enum Msg {
-	MoveLeft,
-	MoveRight,
-	MoveDown,
-	RotateClockwise,
-	RotateAnticlockwise,
-	PlacePiece,
+	KeyUpdate(String),
 }
 
 struct Model {
+	game: Game,
 	board_canvas: NodeRef,
-    board: Board,
-    piece: ActivePiece,
-    rando: BagRandomizer<ThreadRng>,
-}
-
-fn controls(string: &str) -> Option<Msg> {
-    match string {
-    	"KeyK" => Some(Msg::MoveLeft),
-    	"Semicolon" => Some(Msg::MoveRight),
-        "ShiftLeft" => Some(Msg::MoveDown),
-    	"KeyO" => Some(Msg::RotateClockwise),
-    	"KeyA" => Some(Msg::RotateAnticlockwise),
-        "Space" => Some(Msg::PlacePiece),
-        _ => None
-    }
+	queue_canvas: NodeRef,
+	hold_canvas: NodeRef,
 }
 
 impl Component for Model {
@@ -125,75 +69,77 @@ impl Component for Model {
 		let location = window.location();
 		let search = location.search()
 			.expect("location should have a search");
-		let params = UrlSearchParams::new_with_str(
+		let _params = UrlSearchParams::new_with_str(
 				search.as_str())
 			.expect("search should be valid parameters");
-		// generate board from parameters
-		let board = match params.get("board") {
-			Some(string) => get_board_from_str(&string),
-			None => Board::new(),
-		};
-		let mut rando = BagRandomizer::new(rand::thread_rng());
-		// generate active piece from parameter
-		let piece_type = match params.get("piece") {
-			Some(string) => string.chars().next().and_then(
-				|c| get_piece_from_char(c))
-				.unwrap_or(rando.next()),
-			None => rando.next(),
-		};
-		let piece = ActivePiece::spawn(piece_type,
-			Rotation::Zero);
+		let mut game = Game::new();
+		game.execute(Action::SpawnPiece(
+			Rotation::Zero, false));
 		// create model
         Self {
+        	game: game,
     		board_canvas: NodeRef::default(),
-            board: board,
-            piece: piece,
-            rando: rando,
+    		hold_canvas: NodeRef::default(),
+    		queue_canvas: NodeRef::default(),
         }
     }
 
     fn update(&mut self, _ctx: &Context<Self>,
     		msg: Msg) -> bool {
     	match msg {
-    		Msg::MoveLeft => self.piece.try_move(
-    				&self.board, Vector::ONE_LEFT),
-    		Msg::MoveRight => self.piece.try_move(
-    				&self.board, Vector::ONE_RIGHT),
-    		Msg::MoveDown => self.piece.try_move(
-    				&self.board, Vector::ONE_DOWN),
-    		Msg::RotateClockwise => self.piece.try_rotate(
-    				&self.board, Rotation::Clockwise),
-    		Msg::RotateAnticlockwise => self.piece.try_rotate(
-    				&self.board, Rotation::Anticlockwise),
-    		Msg::PlacePiece => {
-        		let piece = std::mem::replace(
-        			&mut self.piece,
-        			ActivePiece::spawn(self.rando.next(),
-						Rotation::Zero));
-        		piece.place(&mut self.board);
-        		true
-    		}
+    		Msg::KeyUpdate(key) => match key.as_str() {
+		    	"KeyK" => self.game.execute(
+		    		Action::MoveLeft),
+		    	"Semicolon" => self.game.execute(
+		    		Action::MoveRight),
+		        "ShiftLeft" => self.game.execute(
+		    		Action::MoveDown),
+		    	"KeyO" => self.game.execute(
+		    		Action::Rotate(Rotation::Clockwise)),
+		    	"KeyA" => self.game.execute(
+		    		Action::Rotate(Rotation::Anticlockwise)),
+		        "KeyD" =>  self.game.execute(
+		    		Action::HoldPiece(Rotation::Zero)),
+		        "Space" => {
+		        	self.game.execute(Action::PlacePiece(
+		        		Rotation::Zero, false));
+	        		self.game.execute(Action::SpawnPiece(
+	        			Rotation::Zero, false));
+	        		true},
+		        _ => false,
+		    }
     	}
     }
 
 
     fn view(&self, ctx: &Context<Self>) -> Html {
-    	let callback = ctx.link()
-    		.batch_callback(move |e: KeyboardEvent| {
-    			controls(e.code().as_str())
-    		});
+    	let callback = ctx.link().callback(
+    			move |e: KeyboardEvent|
+    				Msg::KeyUpdate(e.code()));
         html! {
-            <canvas class="board"
-            	ref={self.board_canvas.clone()}
+        	<div class="game"
             	tabindex=1
             	onkeydown={callback}>
-            </canvas>
+            	<div class="sidebar">
+	        		<canvas class="hold"
+		            	ref={self.hold_canvas.clone()}>
+		            </canvas>
+	            </div>
+	            <canvas class="board"
+	            	ref={self.board_canvas.clone()}>
+	            </canvas>
+            	<div class="sidebar">
+		            <canvas class="queue"
+		            	ref={self.queue_canvas.clone()}>
+		            </canvas>
+	            </div>
+            </div>
         }
     }
 
      fn rendered(&mut self, _ctx: &Context<Self>,
      		_first: bool) {
-        // update canvas size
+        // get board canvas
         let canvas = self.board_canvas.cast::<HtmlCanvasElement>()
         	.expect("element should be a canvas");
 		let width = canvas.offset_width() as f64;
@@ -216,10 +162,14 @@ impl Component for Model {
     	context.fill_rect(0.0, height - size * 20.0,
     		width, size * 20.0);
     	// draw each board mino
+    	let board = self.game.get_board();
     	for y in 0..26 {
+    		if y == 20 {
+				context.set_global_alpha(0.75);
+    		}
     		for x in 0..10 {
     			let pos = Position::new(x, y);
-    			if let Some(mino) = self.board[pos] {
+    			if let Some(mino) = board[pos] {
 					context.set_fill_style(&JsValue::from_str(
 						get_mino_css_color(mino)));
 					context.fill_rect(
@@ -230,23 +180,111 @@ impl Component for Model {
     		}
     	}
 		// draw the active piece
-		context.set_fill_style(&JsValue::from_str(
-			get_piece_css_color(self.piece.get_type())));
-		for pos in self.piece.get_mino_positions() {
-			context.fill_rect(
-				size * pos.x as f64,
-				height - size * (pos.y + 1) as f64,
-				size + 0.5, size + 0.5);
+		if let Some(piece) = self.game.get_piece() {
+			context.set_global_alpha(1.0);
+			context.set_fill_style(&JsValue::from_str(
+				get_piece_css_color(piece.get_type())));
+			for pos in piece.get_mino_positions() {
+				context.fill_rect(
+					size * pos.x as f64,
+					height - size * (pos.y + 1) as f64,
+					size + 0.5, size + 0.5);
+			}
+			// draw the ghost piece
+			context.set_global_alpha(0.5);
+			for pos in piece.get_ghost(board)
+				.get_mino_positions() {
+				context.fill_rect(
+					size * pos.x as f64,
+					height - size * (pos.y + 1) as f64,
+					size + 0.5, size + 0.5);
+			}
 		}
-		// draw the ghost piece
-		context.set_global_alpha(0.5);
-		for pos in self.piece.get_ghost(&self.board)
-			.get_mino_positions() {
-			context.fill_rect(
-				size * pos.x as f64,
-				height - size * (pos.y + 1) as f64,
-				size + 0.5, size + 0.5);
-		}
+		// get hold canvas
+        let canvas = self.hold_canvas.cast::<HtmlCanvasElement>()
+        	.expect("element should be a canvas");
+		let width = canvas.offset_width() as f64;
+		let height = canvas.offset_height() as f64;
+		canvas.set_width(width as u32);
+		canvas.set_height(height as u32);
+		// get rendering context
+		let context = canvas.get_context("2d")
+			.expect("canvas should have context")
+			.expect("context element should be supported")
+		.dyn_into::<CanvasRenderingContext2d>()
+			.expect("element should be a context");
+		// get the size of each individual mino
+		let size = width / 4.0;
+		// draw the background
+		context.set_fill_style(&JsValue::from_str("#222"));
+    	context.fill_rect(0.0, 0.0, width, height);
+    	// draw the hold mino
+    	if let Some(piece) = self.game.get_hold() {
+    		if self.game.get_held() {
+				context.set_global_alpha(0.5);
+    		} else {
+    			context.set_global_alpha(1.0);
+    		}
+			context.set_fill_style(&JsValue::from_str(
+				get_piece_css_color(piece)));
+			let mut x_offset = -0.5;
+			let mut y_offset = 0.0;
+			if piece == PieceType::I {
+				x_offset = -1.0;
+				y_offset = 0.5;
+			}
+			if piece == PieceType::O {
+				x_offset = -1.0;
+				y_offset = 1.0;
+			}
+			for vec in piece.get_mino_vecs() {
+				context.fill_rect(
+					width / 2.0 + size * (vec.x as f64 + x_offset),
+					height / 2.0 - size * (vec.y as f64 + y_offset),
+					size + 0.5, size + 0.5);
+			}
+    	}
+    	// get queue canvas
+        let canvas = self.queue_canvas.cast::<HtmlCanvasElement>()
+        	.expect("element should be a canvas");
+		let width = canvas.offset_width() as f64;
+		let height = canvas.offset_height() as f64;
+		canvas.set_width(width as u32);
+		canvas.set_height(height as u32);
+		// get rendering context
+		let context = canvas.get_context("2d")
+			.expect("canvas should have context")
+			.expect("context element should be supported")
+		.dyn_into::<CanvasRenderingContext2d>()
+			.expect("element should be a context");
+		// get the size of each individual mino
+		let size = width / 4.0;
+    	// draw the hold mino
+    	context.set_global_alpha(1.0);
+    	for i in 0..4 {
+			// draw the background
+			context.set_fill_style(&JsValue::from_str("#222"));
+	    	context.fill_rect(0.0, i as f64 * height / 4.0, width, size * 3.0);
+    		let piece = self.game.get_queue().get(i);
+			context.set_fill_style(&JsValue::from_str(
+				get_piece_css_color(piece)));
+			let mut x_offset = -0.5;
+			let mut y_offset = 0.0;
+			if piece == PieceType::I {
+				x_offset = -1.0;
+				y_offset = 0.5;
+			}
+			if piece == PieceType::O {
+				x_offset = -1.0;
+				y_offset = 1.0;
+			}
+			for vec in piece.get_mino_vecs() {
+				context.fill_rect(
+					width / 2.0 + size * (vec.x as f64 + x_offset),
+					size * 1.5 + height / 4.0 * i as f64 - size * (vec.y as f64 + y_offset),
+					size + 0.5, size + 0.5);
+			}
+    	}
     }
 }
 
@@ -256,7 +294,7 @@ pub fn run_app() {
 		.expect("should have a window");
 	let document = window.document()
 		.expect("window should have a document");
-	let game = document.get_element_by_id("game")
+	let game = document.get_element_by_id("content")
 		.expect("document should have a #game div");
     yew::start_app_in_element::<Model>(game);
 }

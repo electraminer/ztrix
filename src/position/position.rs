@@ -4,7 +4,7 @@ use std::ops::Add;
 use std::ops::Neg;
 use std::ops::Sub;
 
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct Position {
 	pub x: i32,
 	pub y: i32,

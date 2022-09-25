@@ -14,6 +14,18 @@ impl<const W: usize, const H: usize> Board<W, H> {
 			matrix: [[None; W]; H]
 		}
 	}
+
+	pub fn clear_lines(&mut self) {
+		for y in 0..H {
+			if self.matrix[y].iter().all(|m|
+					matches!(m, Some(_))) {
+				for i in (0..y).rev() {
+					self.matrix[i+1] = self.matrix[i];
+				}
+				self.matrix[0] = [Some(Mino::Gray); W];
+			}
+		}
+	}
 }
 
 impl<const W: usize, const H: usize> Index<Position> for Board<W, H> {

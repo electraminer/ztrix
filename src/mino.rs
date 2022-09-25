@@ -1,6 +1,6 @@
 use crate::piece::PieceType;
 
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub enum Mino {
 	Piece(PieceType),
 	Gray,

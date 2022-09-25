@@ -12,7 +12,10 @@ edition = "2021"
 [lib]
 crate-type = ["cdylib", "rlib"]
 
+[[bin]]
+name = "ztrix-test"
+path = "src/main.rs"
+
 [dependencies]
-getrandom = {features = ["js"]}
 rand = "0.8.5"
 enumset = "1.0"

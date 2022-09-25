@@ -5,7 +5,7 @@ use crate::position::Rotation;
 use crate::position::Position;
 use crate::position::Vector;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct ActivePiece {
 	piece_type: PieceType,
 	pos: Position,
@@ -13,7 +13,7 @@ pub struct ActivePiece {
 }
 
 impl ActivePiece {
-	pub fn spawn(piece_type: PieceType, irs: Rotation)
+	pub fn spawn_unchecked(piece_type: PieceType, irs: Rotation)
 			-> ActivePiece {
 		let min_y = piece_type.get_mino_vecs().iter()
 			.map(|v| v.rotate(irs).y).min().unwrap_or(0);
@@ -22,6 +22,21 @@ impl ActivePiece {
 			pos: Position::new(4, 19 - min_y),
 			rot: irs,
 		}
+	}
+
+	pub fn spawn(board: &Board, piece_type: PieceType,
+			irs: Rotation) -> Option<ActivePiece> {
+		let piece = ActivePiece::spawn_unchecked(
+				piece_type, irs);
+		if !piece.is_colliding(board) {
+			return Some(piece)
+		}
+		let piece = ActivePiece::spawn_unchecked(
+				piece_type, Rotation::Zero);
+		if !piece.is_colliding(board) {
+			return Some(piece)
+		}
+		None
 	}
 
 	pub fn get_type(&self) -> PieceType {
@@ -51,12 +66,15 @@ impl ActivePiece {
 
 	pub fn try_rotate(&mut self, board: &Board,
 			rot: Rotation) -> bool {
+		let kicks = self.piece_type.get_kicks(self.rot, rot);
 		self.rot = self.rot + rot;
-		if self.is_colliding(board) {
-			self.rot = self.rot - rot;
-			return false;
+		for kick in kicks {
+			if self.try_move(board, kick) {
+				return true;
+			}
 		}
-		return true;
+		self.rot = self.rot - rot;
+		return false;
 	}
 
 	pub fn get_ghost(&self, board: &Board) -> ActivePiece {

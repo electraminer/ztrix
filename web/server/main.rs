@@ -22,6 +22,10 @@ fn main() {
 		if let Some(request) = request.remove_prefix("/html") {
 			return rouille::match_assets(&request, "./web/html");
 		}
+		// Return generic HTML files
+		if let Some(request) = request.remove_prefix("/css") {
+			return rouille::match_assets(&request, "./web/css");
+		}
 		// Return generic JS/WASM files
 		if let Some(request) = request.remove_prefix("/wasm") {
 			return rouille::match_assets(&request, "./web/wasm/pkg");
