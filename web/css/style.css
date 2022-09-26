@@ -3,30 +3,93 @@ html, body, #content {
 	height: 100%;
 	margin: 0;	
 	display: flex;
+	flex-direction: row;
 	background-color: #111;
+	justify-content: center;
+}
+
+.interface {
+	display: flex;
+	flex-direction: column;
+	gap: 1%;
+	outline: none;
+}
+
+@media (max-aspect-ratio: 9/15) {
+	.interface {
+		flex: 1;
+	}
+}
+
+@media (min-aspect-ratio: 9/15) {
+	.interface {
+		height: 100%;
+		align-items: center;
+	}
+
+	.game {
+		aspect-ratio: 20/26;
+	}
+
+	.bottom_buttons {
+		width: 51vh;
+	}
 }
 
 .game {
-	flex: 1;
 	display: flex;
-	justify-content: center;
-	gap: 10px;
-	padding: 20px 0;
-}
-
-.sidebar {
-	aspect-ratio: 3/26;
-	padding: 10px 0;
+	flex: 1;
 }
 
 .board {
+	flex: 10;
+    position: relative;
+}
+
+.board-canvas {
+	width: 100%;
+	bottom: 0%;
+	position: absolute;
 	aspect-ratio: 10/26;
 }
 
-.hold, .queue {
-	width: 100%;
-	top: 25%;
+.sidebar {
 	position: relative;
+}
+
+@media (max-aspect-ratio: 9/15) {
+	.sidebar {
+		flex: 3;
+	}
+}
+
+@media (min-aspect-ratio: 9/15) {
+	.sidebar {
+		flex: 5 !important;
+	}
+}
+
+.top-buttons {
+	width: 100%;
+
+	display: flex;
+	flex-direction: column;
+}
+
+.side-buttons {
+	width: 100%;
+	bottom: 0%;
+	position: absolute;
+
+
+	display: flex;
+	flex-direction: column;
+}
+
+.hold, .queue {
+	width: 80%;
+
+	margin: 10% 10% 0%;
 }
 
 .hold {
@@ -34,5 +97,41 @@ html, body, #content {
 }
 
 .queue {
-	aspect-ratio: 4/16;
+	aspect-ratio: 8/28;
+}
+
+.bottom_buttons {
+	display: flex;
+	flex-direction: column;
+}
+
+.button-row {
+	display: flex;
+	aspect-ratio: 5/1;
+}
+
+.button-row>button {
+	flex: 1;
+}
+
+.top-button, .side-buttons>button {
+	width: 80%;
+	aspect-ratio: 4/3;
+
+	margin: 10% 10% 0%;
+
+}
+
+button {
+	border: none;
+	outline: none;
+	background-color: #666;
+	margin: 2px;
+	padding: 0;
+}
+
+button>img {
+	max-width: 100%;
+	max-height: 100%;
+	pointer-events: none;
 }

@@ -15,11 +15,12 @@ pub struct ActivePiece {
 impl ActivePiece {
 	pub fn spawn_unchecked(piece_type: PieceType, irs: Rotation)
 			-> ActivePiece {
+		let offset = piece_type.get_kicks(Rotation::Zero, irs)[0];
 		let min_y = piece_type.get_mino_vecs().iter()
-			.map(|v| v.rotate(irs).y).min().unwrap_or(0);
+			.map(|v| v.rotate(irs).y + offset.y).min().unwrap_or(0);
 		ActivePiece{
 			piece_type: piece_type,
-			pos: Position::new(4, 19 - min_y),
+			pos: Position::new(4, 19 - min_y) + offset,
 			rot: irs,
 		}
 	}

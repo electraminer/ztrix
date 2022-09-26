@@ -1,4 +1,6 @@
 extern crate wasm_bindgen;
+use web_sys::HtmlElement;
+
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 
@@ -17,10 +19,18 @@ use ztrix::mino::Mino;
 
 use ztrix::game::Game;
 
+extern crate enumset;
+use enumset::EnumSet;
+
 extern crate web_sys;
 use web_sys::CanvasRenderingContext2d;
 use web_sys::HtmlCanvasElement;
 use web_sys::UrlSearchParams;
+
+mod controls;
+use crate::controls::Controls;
+use crate::controls::ControlsBinding;
+use crate::controls::ControlsHandler;
 
 fn get_mino_css_color(mino: Mino) -> &'static str {
 	match mino {
@@ -47,12 +57,22 @@ fn get_piece_css_color(piece: PieceType) -> &'static str {
 	}
 }
 
-enum Msg {
-	KeyUpdate(String),
+pub enum Msg {
+	KeyDown(String),
+	KeyUp(String),
+	LostFocus,
+	BtnClick(Controls),
+	BtnDown(Controls),
+	BtnUp(Controls),
+	TimeUpdate,
 }
 
-struct Model {
+pub struct Model {
 	game: Game,
+	binding: ControlsBinding,
+	handler: ControlsHandler,
+	touch: bool,
+	game_div: NodeRef,
 	board_canvas: NodeRef,
 	queue_canvas: NodeRef,
 	hold_canvas: NodeRef,
@@ -78,67 +98,117 @@ impl Component for Model {
 		// create model
         Self {
         	game: game,
+        	binding: ControlsBinding::new(),
+        	handler: ControlsHandler::new(),
+        	touch: false,
+    		game_div: NodeRef::default(),
     		board_canvas: NodeRef::default(),
     		hold_canvas: NodeRef::default(),
     		queue_canvas: NodeRef::default(),
         }
     }
 
-    fn update(&mut self, _ctx: &Context<Self>,
-    		msg: Msg) -> bool {
+    fn update(&mut self, _ctx: &Context<Self>, msg: Msg) -> bool {
     	match msg {
-    		Msg::KeyUpdate(key) => match key.as_str() {
-		    	"KeyK" => self.game.execute(
-		    		Action::MoveLeft),
-		    	"Semicolon" => self.game.execute(
-		    		Action::MoveRight),
-		        "ShiftLeft" => self.game.execute(
-		    		Action::MoveDown),
-		    	"KeyO" => self.game.execute(
-		    		Action::Rotate(Rotation::Clockwise)),
-		    	"KeyA" => self.game.execute(
-		    		Action::Rotate(Rotation::Anticlockwise)),
-		        "KeyD" =>  self.game.execute(
-		    		Action::HoldPiece(Rotation::Zero)),
-		        "Space" => {
-		        	self.game.execute(Action::PlacePiece(
-		        		Rotation::Zero, false));
-	        		self.game.execute(Action::SpawnPiece(
-	        			Rotation::Zero, false));
-	        		true},
-		        _ => false,
-		    }
+    		Msg::KeyDown(k) => {
+    			if let Some(control) = self.binding.map_key(k) {
+    				self.handler.press(&mut self.game, control)
+    			} else {
+    				false
+    			}},
+    		Msg::KeyUp(k) => {
+    			if let Some(control) = self.binding.map_key(k) {
+    				self.handler.release(&mut self.game, control)
+    			} else {
+    				false
+    			}},
+    		Msg::LostFocus => {
+    			for control in EnumSet::all() {
+    				self.handler.release(&mut self.game, control);
+    			}
+    			true},
+    		Msg::BtnDown(c) => self.handler.press(&mut self.game, c),
+    		Msg::BtnUp(c) => {
+    			self.touch = true;
+    			self.handler.release(&mut self.game, c)},
+    		Msg::BtnClick(c) => {
+    			if self.touch {
+    				self.touch = false;
+    				false
+    			} else {
+    				self.handler.press(&mut self.game, c);
+    				self.handler.release(&mut self.game, c);
+    				true
+    			}},
+    		Msg::TimeUpdate => false,
     	}
     }
 
 
     fn view(&self, ctx: &Context<Self>) -> Html {
-    	let callback = ctx.link().callback(
-    			move |e: KeyboardEvent|
-    				Msg::KeyUpdate(e.code()));
         html! {
-        	<div class="game"
-            	tabindex=1
-            	onkeydown={callback}>
-            	<div class="sidebar">
-	        		<canvas class="hold"
-		            	ref={self.hold_canvas.clone()}>
-		            </canvas>
+        	<div class="interface"
+	            	tabindex=1
+	            	onkeydown={ctx.link().callback(
+	            		move |e: KeyboardEvent| Msg::KeyDown(e.code()))}
+	            	onkeyup={ctx.link().callback(
+	            		move |e: KeyboardEvent| Msg::KeyUp(e.code()))}
+	            	onfocusout={ctx.link().callback(move |_|
+	            		Msg::LostFocus)}>
+	        	<div class="game"
+			        ref={self.game_div.clone()}>
+	            	<div class="sidebar">
+			            <button class="top-button"
+			           		id="settings"></button>
+		        		<canvas class="hold"
+			            	ref={self.hold_canvas.clone()}>
+			            </canvas>
+			            {self.binding.get_left_html(ctx)}
+		            </div>
+		            <div class="board">
+			            <canvas class="board-canvas"
+			            	ref={self.board_canvas.clone()}>
+			            </canvas>
+			        </div>
+	            	<div class="sidebar">
+			            <button class="top-button"
+			           		id="edit"></button>
+			            <canvas class="queue"
+			            	ref={self.queue_canvas.clone()}>
+			            </canvas>
+			            {self.binding.get_right_html(ctx)}
+		            </div>
 	            </div>
-	            <canvas class="board"
-	            	ref={self.board_canvas.clone()}>
-	            </canvas>
-            	<div class="sidebar">
-		            <canvas class="queue"
-		            	ref={self.queue_canvas.clone()}>
-		            </canvas>
-	            </div>
+	            {self.binding.get_bottom_html(ctx)}
             </div>
         }
     }
 
      fn rendered(&mut self, _ctx: &Context<Self>,
      		_first: bool) {
+     	// get game div
+     	let game_div = self.game_div.cast::<HtmlElement>()
+        	.expect("should be an html element");
+		let width = game_div.client_width() as f64;
+		let height = game_div.client_height() as f64;
+		let matrix_aspect = 10.0 / 22.5;
+		let matrix_width = height * matrix_aspect;
+		let sidebar_width = (width - matrix_width) / 2.0;
+		let flex = sidebar_width * 10.0 / matrix_width;
+		let flex = flex.clamp(3.0, 6.0);
+		let flex_str = format!("{}", flex);
+		let left_sidebar = game_div.children().item(0)
+			.expect("game div should have a left sidebar")
+			.dyn_into::<HtmlElement>()
+			.expect("should be an html element");
+		left_sidebar.style().set_property("flex", &flex_str)
+			.expect("style should be modifiable");
+		let right_sidebar = game_div.children().item(2)
+			.expect("game div should have a right sidebar")
+			.dyn_into::<HtmlElement>()
+			.expect("should be an html element");
+		right_sidebar.style().set_property("flex", &flex_str)
+			.expect("style should be modifiable");
         // get board canvas
         let canvas = self.board_canvas.cast::<HtmlCanvasElement>()
         	.expect("element should be a canvas");
