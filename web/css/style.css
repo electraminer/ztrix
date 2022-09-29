@@ -15,13 +15,32 @@ html, body, #content {
 	outline: none;
 }
 
-@media (max-aspect-ratio: 9/15) {
+.game {
+	display: flex;
+	flex: 1;
+}
+
+.button-grid {
+	display: flex;
+	flex-direction: column;
+}
+
+.button-grid>.button-list {
+	display: flex;
+	aspect-ratio: 5/1;
+}
+
+.button-row>button {
+	flex: 1;
+}
+
+@media (max-aspect-ratio: 90/152) {
 	.interface {
 		flex: 1;
 	}
 }
 
-@media (min-aspect-ratio: 9/15) {
+@media (min-aspect-ratio: 90/152) {
 	.interface {
 		height: 100%;
 		align-items: center;
@@ -31,52 +50,112 @@ html, body, #content {
 		aspect-ratio: 20/26;
 	}
 
-	.bottom_buttons {
+	.button-grid {
 		width: 51vh;
 	}
 }
 
-.game {
-	display: flex;
-	flex: 1;
-}
 
-.board {
+
+.board-column {
 	flex: 10;
     position: relative;
 }
 
-.board-canvas {
+.board {
 	width: 100%;
 	bottom: 0%;
 	position: absolute;
 	aspect-ratio: 10/26;
 }
 
-.sidebar {
+.board-column.in-zone {
+	outline-style: solid;
+	outline-width: thick;
+	outline-color: #FFF;
+}
+
+.board-column.game-over {
+	outline-style: solid;
+	outline-width: thick;
+	outline-color: #C12;
+}
+
+.side-column {
 	position: relative;
 }
 
-@media (max-aspect-ratio: 9/15) {
-	.sidebar {
+@media (max-aspect-ratio: 90/152) {
+	.side-column {
 		flex: 3;
 	}
 }
 
-@media (min-aspect-ratio: 9/15) {
-	.sidebar {
+@media (min-aspect-ratio: 90/152) {
+	.side-column {
 		flex: 5 !important;
 	}
 }
 
-.top-buttons {
-	width: 100%;
+.top-button {
+	width: 80%;
+	aspect-ratio: 4/3;
 
-	display: flex;
-	flex-direction: column;
+	margin: 10% 10% 0%;
 }
 
-.side-buttons {
+.side-column p {
+	color: #FFF;
+	text-align: center;
+	width: 100%;
+	margin: 0;
+	line-height: 1;
+	font-family: "Calibri", sans-serif;
+}
+
+@media (min-aspect-ratio: 90/152) {
+	.top-button {
+		margin: 10% 10% 50%;
+	}
+
+	.side-column p {
+		font-size: 125%;
+	}
+}
+
+.piece-box, .queue>button {
+	aspect-ratio: 4/2;
+	width: 80%;
+	background-color: #111;
+	margin: 0% 10%;
+}
+
+.side-column>.piece-box {
+	margin: 4% 10%;
+}
+
+button>.piece-box {
+	width: 100%;
+	height: 100%;
+	margin: 0;
+}
+
+.indicator {
+	margin: 1% 10% 4%;
+	width: 80%;
+}
+
+@media (min-aspect-ratio: 90/152) {
+	.piece-box, .queue>button {
+		aspect-ratio: 4/2.5;
+	}
+
+	.indicator {
+		margin: 0% 10% 4%;
+	}
+}
+
+.side-column>.button-list {
 	width: 100%;
 	bottom: 0%;
 	position: absolute;
@@ -86,45 +165,25 @@ html, body, #content {
 	flex-direction: column;
 }
 
-.hold, .queue {
-	width: 80%;
-
-	margin: 10% 10% 0%;
-}
-
-.hold {
-	aspect-ratio: 4/3;
-}
-
-.queue {
-	aspect-ratio: 8/28;
-}
-
-.bottom_buttons {
-	display: flex;
-	flex-direction: column;
-}
-
-.button-row {
-	display: flex;
-	aspect-ratio: 5/1;
-}
-
-.button-row>button {
-	flex: 1;
-}
-
-.top-button, .side-buttons>button {
+.side-column>.button-list>button {
 	width: 80%;
 	aspect-ratio: 4/3;
 
 	margin: 10% 10% 0%;
+}
 
+@media (min-aspect-ratio: 90/152) {
+	.top-button {
+		margin: 10% 10% 50%;
+	}
+
+	.side-column p {
+		font-size: 125%;
+	}
 }
 
 button {
 	border: none;
-	outline: none;
 	background-color: #666;
 	margin: 2px;
 	padding: 0;

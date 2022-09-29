@@ -1,20 +1,19 @@
-use crate::piece::PieceType;
-
-use rand::prelude::*;
+use rand::prelude::IteratorRandom;
+use crate::game::PieceType;
+use crate::replay::Info;
 
 use enumset::EnumSet;
 use enumset::EnumSetIter;
 
+#[derive(Clone)]
 pub struct BagRandomizer {
 	set: EnumSet<PieceType>,
-	rng: ThreadRng,
 }
 
 impl BagRandomizer {
-	pub fn new(rng: ThreadRng) -> BagRandomizer {
+	pub fn new() -> BagRandomizer {
 		BagRandomizer{
 			set: EnumSet::all(),
-			rng: rng,
 		}
 	}
 
@@ -22,8 +21,8 @@ impl BagRandomizer {
 		self.set.iter()
 	}
 
-	pub fn next(&mut self) -> PieceType {
-		let next = self.options().choose(&mut self.rng)
+	pub fn next(&mut self, info: &mut Info) -> PieceType {
+		let next = self.options().choose(info)
 			.expect("should always be at least one option");
 		self.set -= next;
 		if self.set.is_empty() {

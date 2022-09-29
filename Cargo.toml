@@ -17,5 +17,5 @@ name = "ztrix-test"
 path = "src/main.rs"
 
 [dependencies]
-rand = "0.8.5"
+rand = {version = "0.8.5", features = ["small_rng"]}
 enumset = "1.0"

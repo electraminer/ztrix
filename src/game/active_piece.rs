@@ -1,15 +1,15 @@
-use crate::board::Board;
-use crate::mino::Mino;
-use crate::piece::PieceType;
+use crate::game::Board;
+use crate::game::Mino;
+use crate::game::PieceType;
 use crate::position::Rotation;
 use crate::position::Position;
 use crate::position::Vector;
 
 #[derive(Debug, Clone)]
 pub struct ActivePiece {
-	piece_type: PieceType,
-	pos: Position,
-	rot: Rotation,
+	pub piece_type: PieceType,
+	pub pos: Position,
+	pub rot: Rotation,
 }
 
 impl ActivePiece {

@@ -1,9 +1,10 @@
-use crate::mino::Mino;
+use crate::game::Mino;
 use crate::position::Position;
 
 use std::ops::IndexMut;
 use std::ops::Index;
 
+#[derive(Clone)]
 pub struct Board<const W: usize = 10, const H: usize = 26> {
 	matrix: [[Option<Mino>; W]; H]
 }
@@ -16,6 +17,18 @@ impl<const W: usize, const H: usize> Board<W, H> {
 	}
 
 	pub fn clear_lines(&mut self) {
+		for y in (0..H).rev() {
+			if self.matrix[y].iter().all(|m|
+					matches!(m, Some(_))) {
+				for i in y..H-1 {
+					self.matrix[i] = self.matrix[i+1];
+				}
+				self.matrix[H-1] = [None; W];
+			}
+		}
+	}
+
+	pub fn clear_lines_zone(&mut self) {
 		for y in 0..H {
 			if self.matrix[y].iter().all(|m|
 					matches!(m, Some(_))) {
