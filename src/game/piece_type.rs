@@ -4,7 +4,7 @@ use crate::position::Vector;
 extern crate enumset;
 use enumset::EnumSetType;
 
-#[derive(Debug, EnumSetType)]
+#[derive(Debug, EnumSetType, Hash)]
 pub enum PieceType {
 	S,
 	T,

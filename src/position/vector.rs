@@ -4,7 +4,7 @@ use std::ops::Add;
 use std::ops::Neg;
 use std::ops::Sub;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, Hash, PartialEq)]
 pub struct Vector {
 	pub x: i32,
 	pub y: i32,

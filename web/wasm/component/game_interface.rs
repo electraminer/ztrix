@@ -2,7 +2,7 @@
 use controller::action::MetaAction;
 use controller::input_handler::InputHandler;
 use controller::input_handler::InputEvent;
-use controller::input_handler::VirtualInputEvent;
+
 use controller::action_handler::ActionHandler;
 
 use component::subcomponent::Subcomponent;
@@ -26,7 +26,6 @@ use gloo_timers::callback::Interval;
 
 pub struct GameInterface {
 	replay: Replay,
-	frozen: bool,
 	input_handler: InputHandler<Action>,
 	action_handler: ActionHandler,
 	game_subcomp: GameSubcomponent,
@@ -54,7 +53,6 @@ impl Component for GameInterface {
 		// create model
         Self {
         	replay: Replay::new(Game::new()),
-        	frozen: true,
         	input_handler: InputHandler::new(),
         	action_handler: ActionHandler::new(),
         	game_subcomp: game_subcomp,
@@ -71,37 +69,21 @@ impl Component for GameInterface {
 		let virtual_inputs = self.input_handler.update(
 			event, input_bindings);
 		let meta_actions = virtual_inputs.into_iter()
-			.map(|e| {
-				if matches! { e,
-					VirtualInputEvent::Pressed(_)} {
-					self.frozen = false;
-				}
-				if self.frozen && matches! { e,
-					VirtualInputEvent::TimePassed(_)} {
-					vec![]
-				} else {
-					self.action_handler.update(
-						self.replay.get_game(), e)
-				}})
+			.map(|e| self.action_handler.update(
+						&self.replay, e))
     		.reduce(|mut l, mut r| {l.append(&mut r); l})
     		.unwrap_or(vec![]);
     	meta_actions.into_iter().map(|e| match e {
-    			MetaAction::Action(action) => {
-    				self.replay.add_action(action); true},
-    			MetaAction::Undo => {
-    				self.frozen = true;
-    				self.replay.clear_or_undo()},
-    			MetaAction::Redo => {
-    				self.frozen = true;
-    				self.replay.redo()},
-    			MetaAction::Reroll(back) => {
-    				self.frozen = true;
-    				self.replay.reroll_prev_info(back)},
-    			MetaAction::Restart => {
-    				self.frozen = true;
-    				self.replay = Replay::new(Game::new());
-    				true},
-    		}).fold(false, |l, r| l || r)
+    			MetaAction::Action(action) =>
+    				self.replay.update(action),
+    			MetaAction::Revert => self.replay.revert(),
+    			MetaAction::Undo => self.replay.undo(),
+    			MetaAction::Redo => self.replay.redo(),
+    			MetaAction::Reroll(back) =>
+    				self.replay.reroll_backward(back),
+    			MetaAction::Restart =>
+    				self.replay = Replay::new(Game::new()),
+    		}).fold(false, |_, _| true)
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
@@ -120,7 +102,7 @@ impl Component for GameInterface {
             		InputEvent::GainedFocus)}>
 	        	{self.game_subcomp.view(ctx, game::Props{
 		    		game: self.replay.get_game(),
-		    		frame: self.replay.get_frame_num()
+		    		frame: self.replay.get_frame()
 		    	})}
 	            {button::view_button_grid(ctx,
 	            	"BottomButtons".to_string(),
@@ -132,7 +114,7 @@ impl Component for GameInterface {
     fn rendered(&mut self, ctx: &Context<Self>, first: bool) {
     	self.game_subcomp.rendered(ctx, game::Props{
     		game: self.replay.get_game(),
-    		frame: self.replay.get_frame_num()
+    		frame: self.replay.get_frame()
     	}, first);
     }
 }

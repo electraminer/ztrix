@@ -75,6 +75,7 @@ impl ButtonViewable for Action {
 #[derive(Copy, Clone)]
 pub enum MetaAction {
 	Action(ztrix::game::Action),
+    Revert,
     Undo,
     Redo,
     Reroll(usize),

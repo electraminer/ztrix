@@ -22,7 +22,7 @@ pub enum Action {
 	ToggleZone,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Eq, Hash, PartialEq)]
 pub struct Game {
 	current: PieceType,
 	queue: Queue,

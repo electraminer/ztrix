@@ -4,7 +4,7 @@ use crate::game::PieceType;
 use crate::game::BagRandomizer;
 use crate::replay::Info;
 
-#[derive(Clone)]
+#[derive(Clone, Eq, Hash, PartialEq)]
 pub struct Queue<const L: usize = 4> {
 	queue: [PieceType; L],
 	rando: BagRandomizer,

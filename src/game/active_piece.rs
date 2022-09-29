@@ -5,7 +5,7 @@ use crate::position::Rotation;
 use crate::position::Position;
 use crate::position::Vector;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, Hash, PartialEq)]
 pub struct ActivePiece {
 	pub piece_type: PieceType,
 	pub pos: Position,

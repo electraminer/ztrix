@@ -44,14 +44,11 @@ html, body, #content {
 	.interface {
 		height: 100%;
 		align-items: center;
+		aspect-ratio: 9/17.5;
 	}
 
 	.game {
 		aspect-ratio: 20/26;
-	}
-
-	.button-grid {
-		width: 51vh;
 	}
 }
 

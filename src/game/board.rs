@@ -4,7 +4,7 @@ use crate::position::Position;
 use std::ops::IndexMut;
 use std::ops::Index;
 
-#[derive(Clone)]
+#[derive(Clone, Eq, Hash, PartialEq)]
 pub struct Board<const W: usize = 10, const H: usize = 26> {
 	matrix: [[Option<Mino>; W]; H]
 }

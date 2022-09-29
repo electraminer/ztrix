@@ -8,3 +8,5 @@ pub mod board;
 pub mod queue;
 
 pub mod button;
+
+pub mod edit_interface;
