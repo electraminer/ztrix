@@ -43,7 +43,7 @@ pub fn piece_box_component(props: &Props) -> Html {
 					PieceType::T => "#819",
 				}));
     		if grayed {
-				context.set_global_alpha(0.5);
+				context.set_global_alpha(0.3);
     		}
     		// position at which to put piece origin
     		let (x_offset, y_offset) = match piece {

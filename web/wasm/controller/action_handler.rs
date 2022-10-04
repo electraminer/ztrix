@@ -19,7 +19,6 @@ pub struct HandlingSettings {
     down_das_duration: Duration,
     down_arr_duration: Duration,
     entry_delay: Duration,
-    reset_duration: Duration,
 }
 
 impl Default for HandlingSettings {
@@ -30,7 +29,6 @@ impl Default for HandlingSettings {
 			down_das_duration: Duration::from_millis(150),
 			down_arr_duration: Duration::from_millis(30),
 			entry_delay: Duration::from_millis(100),
-			reset_duration: Duration::ZERO,
 		}
 	}
 }
@@ -42,7 +40,7 @@ enum DasDirection {
 	None
 }
 
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub enum MetaAction {
 	Action(Action),
     Revert,
@@ -50,6 +48,7 @@ pub enum MetaAction {
     Redo,
     Reroll(usize),
 	Restart,
+	Edit,
 }
 
 pub struct ActionHandler {
@@ -58,7 +57,6 @@ pub struct ActionHandler {
 	das_timer: Duration,
 	down_das_timer: Duration,
 	entry_delay_timer: Duration,
-	reset_timer: Duration,
 	frozen: bool,
 	moved: bool,
 }
@@ -72,7 +70,6 @@ impl ActionHandler {
 			das_timer: Duration::ZERO,
 			down_das_timer: Duration::ZERO,
 			entry_delay_timer: Duration::ZERO,
-			reset_timer: Duration::ZERO,
 			frozen: false,
 			moved: false,
 		}
@@ -109,7 +106,7 @@ impl ActionHandler {
 	pub fn press(&mut self, replay: &Replay, button: PlayButton)
 			-> Vec<MetaAction> {
 		let user_prefs = UserPrefs::get();
-		let handling_settings = user_prefs.get_handling_settings();
+		let handling_settings = &user_prefs.handling_settings;
 		self.held.insert(button);
 		self.frozen = false;
 		let mut vec = Vec::new();
@@ -126,9 +123,15 @@ impl ActionHandler {
 		if matches!{button, PlayButton::Left | PlayButton::Right |
 			PlayButton::DownSlow | PlayButton::DownFast | PlayButton::Place
 			| PlayButton::Clockwise | PlayButton::Anticlockwise
-			| PlayButton::Flip | PlayButton::Hold | PlayButton::Zone} {
+			| PlayButton::Flip | PlayButton::Zone} {
 			self.moved = true;
 		}
+		if let PlayButton::Hold = button {
+			if let Some(_) = game.hold {
+				self.moved = true;
+			}
+		}
+
 		vec.append(&mut match button {
     		PlayButton::Left => {
     			self.das_priority = DasDirection::Left;
@@ -183,15 +186,8 @@ impl ActionHandler {
 	    		}
 	    		vec![MetaAction::Reroll(4 - n + 1)]
 	    	}
-	    	PlayButton::Restart => {
-	    		self.reset_timer = handling_settings.reset_duration;
-	    		if self.reset_timer == Duration::ZERO {
-	    			self.frozen = true;
-	    			vec![MetaAction::Restart]
-	    		} else {
-	    			vec![]
-	    		}
-	    	}
+	    	PlayButton::Restart => vec![MetaAction::Restart],
+	    	_ => vec![],
 		});
 		if self.frozen {
 			self.moved = false;
@@ -202,7 +198,14 @@ impl ActionHandler {
 	pub fn release(&mut self, _replay: &Replay, button: PlayButton)
 			 -> Vec<MetaAction> {
 		self.held.remove(&button);
-		vec![]
+		match button {
+	    	PlayButton::Edit => {
+	    		self.frozen = true;
+	    		self.moved = false;
+	    		vec![MetaAction::Edit]
+	    	}
+	    	_ => vec![],
+		}
 	}
 
 	pub fn pass_time(&mut self, replay: &Replay, duration: Duration)
@@ -212,16 +215,8 @@ impl ActionHandler {
 			return vec![];
 		}
 		let user_prefs = UserPrefs::get();
-		let handling_settings = user_prefs.get_handling_settings();
+		let handling_settings = &user_prefs.handling_settings;
 		let mut vec = Vec::new();
-		if self.reset_timer < duration {
-			if self.held.contains(&PlayButton::Restart) {
-	    		self.frozen = true;
-				vec.push(MetaAction::Restart);
-			}
-		} else {
-			self.reset_timer -= duration;
-		}
 
 		if self.entry_delay_timer < duration {
 			if let MaybeActive::Inactive(_) = game.piece {

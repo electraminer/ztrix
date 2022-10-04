@@ -118,6 +118,8 @@ button {
 	border-style: solid;
 	border-color: #000;
 	border-radius: 5px;
+	outline: none;
+	color: #FFF;
 }
 
 button:hover {
@@ -150,4 +152,75 @@ button>img {
 	flex: 1;
 	margin: 0% 1%;
 	width: 0;
+}
+
+.scrollable {
+	flex: 8;
+	max-width: 100%;
+
+	aspect-ratio: 10/14;
+	background-color: #222;
+
+	padding: 0% 1%;
+	/*height: 100%;
+	padding: 0% 1%;
+	aspect-ratio: 9/16;*/
+
+	overflow-y: scroll;
+}
+
+.scrollable>.row {
+	align-items: center;
+}
+
+.binding-name, .binding-list {
+	flex: 2;
+}
+
+
+.add-binding, .remove-binding {
+	width: 100%;
+	height: 100%;
+}
+
+.add-binding>button, .remove-binding>button {
+	width: 100%;
+	height: 90%;
+	margin: 0% 5%;
+}
+
+.add-binding>button {
+	background-color: #080;
+}
+
+.add-binding>button:hover {
+	background-color: #1A1;
+}
+
+.add-binding>button:focus {
+	background-color: #29D;
+}
+
+.remove-binding>button {
+	background-color: #900;
+}
+
+.remove-binding>button:hover {
+	background-color: #C12;
+}
+
+.remove-binding>button:active {
+	background-color: #C51;
+}
+
+.row>h1 {
+	flex: 3;
+}
+
+h1, h2 {
+	text-align: center;
+	align-self: center;
+	color: #FFF;
+	font-family: "Calibri", sans-serif;
+	margin: 0;
 }

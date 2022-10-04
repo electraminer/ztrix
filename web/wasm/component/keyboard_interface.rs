@@ -11,7 +11,7 @@ use controller::input_handler::ButtonEvent;
 
 use yew::prelude::*;
 
-use user_prefs::UserPrefs;
+
 
 use gloo_timers::callback::Interval;
 
@@ -78,9 +78,7 @@ impl Component for KeyboardInterface {
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
-    	let user_prefs = UserPrefs::get();
-     	let input_bindings = user_prefs.get_input_bindings();
-        html! {
+    	html! {
         	<div class="interface"
             	tabindex=1
             	onkeydown={ctx.link().callback(

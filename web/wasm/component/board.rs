@@ -97,7 +97,7 @@ pub fn board(props: &Props) -> Html {
 							height - block_size * (y + 1.0),
 							block_size + 0.5, block_size + 0.5);
 					}
-					context.set_global_alpha(0.5);
+					context.set_global_alpha(0.3);
 					for pos in active.get_ghost(&board)
 						.get_mino_positions() {
 						let x = pos.x as f64;
@@ -109,7 +109,7 @@ pub fn board(props: &Props) -> Html {
 					}
 				}
 				MaybeActive::Inactive(current) => {
-					context.set_global_alpha(0.5);
+					context.set_global_alpha(0.3);
 					let active = ActivePiece::spawn_unchecked(
 						*current, Rotation::Zero);
 					for pos in active.get_mino_positions() {

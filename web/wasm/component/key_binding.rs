@@ -19,25 +19,33 @@ pub fn key_binding(props: &Props) -> Html {
 	let onunbind = props.onunbind.clone();
 	html! {
 		<div class="row">
-			<p><strong>{props.name.clone()}</strong></p>
-			{for props.bound.iter().map(|c| html! {
-				<p>{c}</p>
-			})}
-			<button
-				onkeydown={props.onbind.reform(
-					|e: KeyboardEvent| e.code())}>
-				{"+"}
-			</button>
-			<ButtonComponent
-				onbutton={Callback::from(
-					move |e: ButtonEvent<()>|
-						if let ButtonEvent::Press(_) = e {
-							if let Some(c) = bound.last() {
-								onunbind.emit(c.to_string());
-							}
-						})}>
-				{"-"}
-			</ButtonComponent>
+			<div class="binding-name">
+				<p><strong>{props.name.clone()}</strong></p>
+			</div>
+			<div class="binding-list">
+				{for props.bound.iter().map(|c| html! {
+					<p>{c}</p>
+				})}
+			</div>
+			<div class="add-binding">
+				<button
+					onkeydown={props.onbind.reform(
+						|e: KeyboardEvent| e.code())}>
+					<img src="/assets/add.png" alt="+"/>
+				</button>
+			</div>
+			<div class="remove-binding">
+				<ButtonComponent
+					onbutton={Callback::from(
+						move |e: ButtonEvent<()>|
+							if let ButtonEvent::Press(_) = e {
+								if let Some(c) = bound.last() {
+									onunbind.emit(c.to_string());
+								}
+							})}>
+					<img src="/assets/remove.png" alt="-"/>
+				</ButtonComponent>
+			</div>
 		</div>
 	}
 }

@@ -1,18 +1,20 @@
 
+use ztrix::game::MaybeActive;
 use component::keyboard_interface::KeyboardInterface;
 use component::button::ButtonComponent;
 use component::game::GameButton;
 use component::queue::QueueButton;
 use controller::input_handler::ButtonEvent;
 
-use controller::input_handler::InputHandler;
+use controller::input_handler::ButtonHandler;
+use controller::input_handler::TimeHandler;
 
 use controller::action_handler::MetaAction;
 use controller::action_handler::ActionHandler;
 
 use component::game::GameComponent;
 
-
+use controller::input_handler::InputEvent;
 
 use yew::prelude::*;
 
@@ -28,7 +30,7 @@ use serde::Serialize;
 use serde::Deserialize;
 
 #[derive(Serialize, Deserialize)]
-#[derive(Copy, Clone, Hash, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
 pub enum PlayButton {
 	Left,
 	Right,
@@ -45,6 +47,7 @@ pub enum PlayButton {
     RerollCurrent,
     RerollNext(usize),
 	Restart,
+	Edit,
 }
 
 impl PlayButton {
@@ -66,6 +69,7 @@ impl PlayButton {
             PlayButton::RerollNext(n) =>
             	return format!{"Reroll Next #{}", n},
             PlayButton::Restart => "Restart",
+            PlayButton::Edit => "Enter Edit Mode",
         }.to_string()
     }
 
@@ -94,7 +98,7 @@ impl PlayButton {
     	html! {
 			<ButtonComponent
 				onbutton={ctx.link().callback(
-					move |u: ButtonEvent<()>| Msg::UserButton(
+					move |u: ButtonEvent<()>| Msg::Button(
 						u.map(|_| self)))}>
 				{match self.get_icon_url() {
 					None => html! {
@@ -113,9 +117,8 @@ impl PlayButton {
 pub enum Msg {
 	KeyButton(ButtonEvent<String>),
 	GameButton(ButtonEvent<GameButton>),
-	UserButton(ButtonEvent<PlayButton>),
+	Button(ButtonEvent<PlayButton>),
 	Interval,
-	Edit,
 }
 
 #[derive(Properties, PartialEq)]
@@ -127,7 +130,8 @@ pub struct Props {
 
 pub struct PlayInterface {
 	replay: Replay,
-	input_handler: InputHandler<PlayButton>,
+	button_handler: ButtonHandler<PlayButton>,
+	time_handler: TimeHandler,
 	action_handler: ActionHandler,
 	_interval: Interval,
 }
@@ -140,7 +144,8 @@ impl Component for PlayInterface {
 		let link = ctx.link().clone();
         Self {
         	replay: Replay::new(ctx.props().game.clone()),
-        	input_handler: InputHandler::new(),
+			button_handler: ButtonHandler::new(),
+			time_handler: TimeHandler::new(),
         	action_handler: ActionHandler::new(),
         	_interval: Interval::new(16, move ||
 				link.send_message(Msg::Interval))
@@ -149,7 +154,7 @@ impl Component for PlayInterface {
 
     fn view(&self, ctx: &Context<Self>) -> Html {
     	let user_prefs = UserPrefs::get();
-     	let input_bindings = user_prefs.get_input_bindings();
+     	let button_bindings = &user_prefs.button_bindings;
         html! {
         	<KeyboardInterface
         		onkey={ctx.link().callback(
@@ -159,12 +164,9 @@ impl Component for PlayInterface {
             		game={self.replay.get_game().clone()}
 	      			top_right={{ html! {
 		        		<ButtonComponent
-		        			onbutton={ctx.link().batch_callback(
-								|b: ButtonEvent<()>| match b {
-									ButtonEvent::Press(_) =>
-										Some(Msg::Edit),
-									_ => None,
-								})}>
+		        			onbutton={ctx.link().callback(
+								|e: ButtonEvent<()>| Msg::Button(
+									e.map(|_| PlayButton::Edit)))}>
 		        			<p>{"Edit"}</p>
 		        		</ButtonComponent>
 	      				}}}
@@ -173,21 +175,19 @@ impl Component for PlayInterface {
 		        		<p><strong>
 		        			{self.replay.get_frame()}
 		        		</strong></p>
-		        		{input_bindings
-			        		.get_left_buttons()
+		        		{button_bindings.left_buttons
 			            	.iter().map(|b| {
 		        				b.view_button(ctx)
 		    				}).collect::<Html>()}
 		            </> }}}
-		        	bottom_right={input_bindings
-		        		.get_right_buttons()
+		        	bottom_right={button_bindings.right_buttons
 		            	.iter().map(|b| {
 	        				b.view_button(ctx)
 	    				}).collect::<Html>()}
 	    			onbutton={ctx.link().callback(
 	        			|e: ButtonEvent<GameButton>|
 	        				Msg::GameButton(e))}/>
-	            {for input_bindings.get_bottom_buttons()
+	            {for button_bindings.bottom_buttons
 	            	.iter().map(|v| html! {
 	            		<div class="row">
 	            			{for v.iter().map(|b| {
@@ -202,58 +202,42 @@ impl Component for PlayInterface {
        fn update(&mut self, _ctx: &Context<Self>,
     		msg: Msg) -> bool {
     	let user_prefs = UserPrefs::get();
-    	let input_bindings = user_prefs.get_input_bindings();
+    	let key_bindings = &user_prefs.key_bindings;
     	let event = match msg {
-    		Msg::KeyButton(event) => {
+    		Msg::KeyButton(event) =>
     			match event.maybe_map(|b|
-    				input_bindings.map_key_to_play(&b))
-    				.and_then(|e| self.input_handler
-    					.button_event(e)) {
-					Some(event) => event,
+    				key_bindings.play_bindings.get(&b)
+    				.copied())
+    				.and_then(|e| self.button_handler
+    					.update(e)) {
+					Some(event) => InputEvent::Button(event),
 					None => return false,
 				}
-    		}
-    		Msg::GameButton(event) => {
+    		Msg::GameButton(event) =>
     			match event.maybe_map(|b| match b {
     				GameButton::Queue(
     					QueueButton::NextBox(n)) =>
     						Some(PlayButton::RerollNext(n)),
     				_ => None,
-    			}).and_then(|e| self.input_handler
-    				.button_event(e)) {
-					Some(event) => event,
+    			}).and_then(|e| self.button_handler
+    				.update(e)) {
+					Some(event) => InputEvent::Button(event),
 					None => return false,
     			}
-    		}
-    		Msg::UserButton(event) => match self.input_handler
-    				.button_event(event) {
-					Some(event) => event,
+    		Msg::Button(event) => match self.button_handler
+    				.update(event) {
+					Some(event) => InputEvent::Button(event),
 					None => return false,
     			}
     		Msg::Interval => {
-    			self.input_handler.time_passed()
-    		}
-    		Msg::Edit => {
-				let mut game = self.replay.get_game().clone();
-				for row in game.board.matrix.iter_mut() {
-					for mino in row.iter_mut() {
-						*mino = match mino {
-							None => None,
-							Some(_) => Some(Mino::Gray),
-						}
-					}
-				}
-				let window = web_sys::window()
-					.expect("should be a window");
-				let url = format!{"/edit/{}", game};
-				window.open_with_url_and_target(
-					&url, "_blank")
-					.expect("should be able to open url");
-				return true;
+    			InputEvent::PassTime(
+    				self.time_handler.update())
     		}
     	};
+    	
 		let meta_actions = self.action_handler
 			.update(&self.replay, event);
+		
     	meta_actions.into_iter().map(|e| match e {
     			MetaAction::Action(action) =>
     				self.replay.update(action),
@@ -267,6 +251,26 @@ impl Component for PlayInterface {
     					self.replay.undo();
     				}
 				},
+				MetaAction::Edit => {
+					self.replay.revert();
+					let mut game = self.replay.get_game().clone();
+					game.piece = MaybeActive::Inactive(
+						game.get_current());
+					for row in game.board.matrix.iter_mut() {
+						for mino in row.iter_mut() {
+							*mino = match mino {
+								None => None,
+								Some(_) => Some(Mino::Gray),
+							}
+						}
+					}
+					let window = web_sys::window()
+						.expect("should be a window");
+					let url = format!{"/edit/{}", game};
+					window.open_with_url_and_target(
+						&url, "_blank")
+						.expect("should be able to open url");
+				}
     		}).count() != 0
     }
 }
