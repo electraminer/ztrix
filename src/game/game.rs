@@ -1,3 +1,7 @@
+use crate::serialize::FromChars;
+use std::str::FromStr;
+use crate::game::MaybeActive;
+
 use crate::replay::Info;
 use crate::position::Rotation;
 use crate::position::Vector;
@@ -9,6 +13,8 @@ use crate::game::ActivePiece;
 use crate::game::Queue;
 
 use crate::game::PieceType;
+
+use std::fmt;
 
 #[derive(Copy, Clone)]
 pub enum Action {
@@ -24,73 +30,51 @@ pub enum Action {
 
 #[derive(Clone, Eq, Hash, PartialEq)]
 pub struct Game {
-	current: PieceType,
-	queue: Queue,
-	hold: Option<PieceType>,
-	has_held: bool,
-	board: Board,
-	piece: Option<ActivePiece>,
-	in_zone: bool,
-	over: bool,
+	pub piece: MaybeActive,
+	pub queue: Queue,
+	pub hold: Option<PieceType>,
+	pub has_held: bool,
+	pub board: Board,
+	pub in_zone: bool,
+	pub over: bool,
 }
 
 impl Game {
 	pub fn new() -> Game {
 		let mut info = Info::new();
 		let mut rando = BagRandomizer::new();
+		let piece = rando.next(&mut info);
 		Game{
-			current: rando.next(&mut info),
+			piece: MaybeActive::Inactive(piece),
 			queue: Queue::new(rando, &mut info),
 			hold: None,
 			has_held: false,
 			board: Board::new(),
-			piece: None,
 			in_zone: false,
 			over: false,
 		}
 	}
 
 	pub fn get_current(&self) -> PieceType {
-		self.current
+		self.piece.get_type()
 	}
 
-	pub fn get_queue(&self) -> &Queue {
-		&self.queue
-	}
-
-	pub fn get_hold(&self) -> Option<PieceType> {
-		self.hold
-	}
-
-	pub fn has_held(&self) -> bool {
-		self.has_held
-	}
-
-	pub fn get_board(&self) -> &Board {
-		&self.board
-	}
-
-	pub fn get_piece(&self) -> &Option<ActivePiece> {
-		&self.piece
-	}
-
-	pub fn is_in_zone(&self) -> bool {
-		self.in_zone
-	}
-
-	pub fn is_over(&self) -> bool {
-		self.over
+	pub fn get_active(&self) -> Option<&ActivePiece> {
+		match &self.piece {
+			MaybeActive::Active(p) => Some(p),
+			MaybeActive::Inactive(_) => None,
+		}
 	}
 
 	fn move_piece(&mut self, vec: Vector) {
-		if let Some(piece) = self.piece.as_mut() {
-			piece.try_move(&self.board, vec);
+		if let MaybeActive::Active(active) = &mut self.piece {
+			active.try_move(&self.board, vec);
 		}
 	}
 
 	fn rotate_piece(&mut self, rot: Rotation) {
-		if let Some(piece) = self.piece.as_mut() {
-			piece.try_rotate(&self.board, rot);
+		if let MaybeActive::Active(active) = &mut self.piece {
+			active.try_rotate(&self.board, rot);
 		}
 	}
 
@@ -104,52 +88,25 @@ impl Game {
 			used_rng = true;
 			self.queue.next(info)
 		});
-		self.hold = Some(self.current);
-		self.current = swap;
-		used_rng
-	}
-
-	fn hold_spawn(&mut self, irs: Rotation,
-			info: &mut Info) -> bool {
-		let prev_held = self.has_held;
-		let used_rng = self.hold(info);
-		if !prev_held && self.has_held {
-			self.piece = ActivePiece::spawn(
-				&self.board, self.current, irs);
-			if let None = self.piece {
-				if self.in_zone {
-					self.toggle_in_zone();
-				}
-				self.piece = ActivePiece::spawn(
-					&self.board, self.current, irs);
-				if let None = self.piece {
-					self.over = true;
-				}
-			}
-		}
+		self.hold = Some(self.get_current());
+		self.piece = MaybeActive::Inactive(swap);
 		used_rng
 	}
 
 	fn spawn(&mut self, irs: Rotation, ihs: bool,
 			info: &mut Info) -> bool {
-		if let Some(_) = self.piece {
-			return false;
-		}
-		let used_rng = if ihs {
-			self.hold(info)
-		} else {
-			false
-		};
-		self.piece = ActivePiece::spawn(
-			&self.board, self.current, irs);
-		if let None = self.piece {
-			if self.in_zone {
-				self.toggle_in_zone();
-			}
-			self.piece = ActivePiece::spawn(
-				&self.board, self.current, irs);
-			if let None = self.piece {
-				self.over = true;
+		let used_rng = ihs && self.hold(info);
+		if let MaybeActive::Inactive(current) = self.piece {
+			match ActivePiece::spawn(
+				&self.board, current, irs).or_else(|| {
+					if self.in_zone {
+						self.toggle_in_zone();
+					}
+					ActivePiece::spawn(
+						&self.board, current, irs)
+				}) {
+				Some(a) => self.piece = MaybeActive::Active(a),
+				None => self.over = true,
 			}
 		}
 		used_rng
@@ -157,27 +114,31 @@ impl Game {
 
 	fn place(&mut self, irs: Rotation, ihs: bool,
 			info: &mut Info) -> bool {
-		let piece = match std::mem::replace(
-				&mut self.piece, None) {
-			Some(p) => p,
-			None => return false,
+		if let MaybeActive::Inactive(_) = self.piece {
+			return false;
+		}
+		let current = self.queue.next(info);
+		let piece = MaybeActive::Inactive(current);
+		let active = match std::mem::replace(
+				&mut self.piece, piece) {
+			MaybeActive::Active(a) => a,
+			MaybeActive::Inactive(_) => return false,
 		};
-		let height = piece.get_ghost(&self.board)
+		let height = active.get_ghost(&self.board)
 			.get_mino_positions()
 			.iter().map(|p| p.y).min().unwrap_or(0);
-		piece.place(&mut self.board);
+		active.place(&mut self.board);
 		if self.in_zone {
 			self.board.clear_lines_zone();
 		} else {
 			self.board.clear_lines();
 		}
-		self.current = self.queue.next(info);
 		self.has_held = false;
 		if ihs {
 			self.hold(info);
 		}
 		if matches! { ActivePiece::spawn(
-			&self.board, self.current, irs), None }
+			&self.board, self.get_current(), irs), None }
 			|| height >= 20 {
 			if self.in_zone {
 				self.toggle_in_zone();
@@ -214,9 +175,70 @@ impl Game {
 			Action::PlacePiece(irs, ihs) =>
 				self.place(irs, ihs, info),
 			Action::HoldPiece(irs) =>
-				self.hold_spawn(irs, info),
+				self.spawn(irs, true, info),
 			Action::ToggleZone => {
 				self.toggle_in_zone(); false},
 		}
+	}
+}
+
+impl Default for Game {
+	fn default() -> Game {
+		Game::new()
+	}
+}
+
+impl fmt::Display for Game {
+
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		write!(f, "{}", self.piece)?;
+		write!(f, "{}", self.queue)?;
+		match self.hold {
+			None => write!(f, "_")?,
+			Some(piece) => write!(f, "{}", piece)?,
+		}
+		match self.has_held {
+			false => write!(f, "F")?,
+			true => write!(f, "T")?,
+		}
+		write!(f, "{}", self.board)?;
+		match self.in_zone {
+			false => write!(f, "F")?,
+			true => write!(f, "T")?,
+		}
+		match self.over {
+			false => write!(f, "F"),
+			true => write!(f, "T"),
+		}
+	}
+}
+
+impl FromChars for Game {
+	fn from_chars<I>(chars: &mut I) -> Result<Self, ()>
+	where 	I: Iterator<Item = char>,
+			Self: Sized {
+		let mut chars = chars.peekable();
+		Ok(Game {
+			piece: MaybeActive::from_chars(&mut chars)?,
+			queue: Queue::from_chars(&mut chars)?,
+			hold: match chars.peek().ok_or(())? {
+				'_' => {
+					chars.next();
+					None
+				},
+				_ => Some(PieceType::from_chars(&mut chars)?),
+			},
+			has_held: chars.next().ok_or(())? == 'T',
+			board: Board::from_chars(&mut chars)?,
+			in_zone: chars.next().ok_or(())? == 'T',
+			over: chars.next().ok_or(())? == 'T',
+		})
+	}
+}
+
+impl FromStr for Game {
+	type Err = ();
+	fn from_str(string: &str) -> Result<Self, ()> {
+		Self::from_chars(&mut string.chars())
 	}
 }

@@ -1,99 +1,53 @@
+use std::rc::Rc;
+use web_sys::HtmlElement;
+use crate::component::canvas::use_canvas;
 
-
+use ztrix::position::Rotation;
+use ztrix::position::Position;
+use ztrix::game::PieceType;
 use ztrix::game::Mino;
 use ztrix::game::Board;
 use ztrix::game::ActivePiece;
-use ztrix::position::Position;
-use ztrix::position::Rotation;
-use ztrix::game::PieceType;
-use wasm_bindgen::JsCast;
-use component::subcomponent::Subcomponent;
-use component::game_interface::GameInterface;
+use ztrix::game::MaybeActive;
 
-use web_sys::HtmlCanvasElement;
-use web_sys::CanvasRenderingContext2d;
-
-use yew::prelude::*;
 use wasm_bindgen::JsValue;
 
-fn get_mino_css_color(mino: Mino) -> &'static str {
-	match mino {
-		Mino::Piece(PieceType::S) => "#1A1",
-		Mino::Piece(PieceType::Z) => "#C12",
-		Mino::Piece(PieceType::J) => "#03D",
-		Mino::Piece(PieceType::T) => "#819",
-		Mino::Piece(PieceType::L) => "#C51",
-		Mino::Piece(PieceType::O) => "#CA0",
-		Mino::Piece(PieceType::I) => "#29D",
-		Mino::Gray => "#666",
-	}
+use yew::prelude::*;
+
+#[derive(Debug)]
+pub enum BoardMouseEvent {
+	Press(Position),
+	Move(Position),
+	Release,
 }
 
-fn get_piece_css_color(piece: PieceType) -> &'static str {
-	match piece {
-		PieceType::S => "#080",
-		PieceType::Z => "#900",
-		PieceType::J => "#00B",
-		PieceType::T => "#617",
-		PieceType::L => "#A30",
-		PieceType::O => "#A80",
-		PieceType::I => "#07B",
-	}
+#[derive(Properties, PartialEq)]
+pub struct Props {
+	pub board: Board,
+	#[prop_or_default]
+	pub piece: Option<MaybeActive>,
+
+	#[prop_or_default]
+	pub onmouse: Callback<BoardMouseEvent>
 }
 
-pub struct BoardSubcomponent {
-	canvas: NodeRef,
-}
+#[function_component(BoardComponent)]
+pub fn board(props: &Props) -> Html {
+	let state_position = use_state(|| None);
 
-pub struct Props<'a> {
-	pub board: &'a Board,
-	pub piece: &'a Option<ActivePiece>,
-	pub current: PieceType,
-}
-
-impl Subcomponent for BoardSubcomponent {
-	type Component = GameInterface;
-	type Properties<'a> = Props<'a>;
-
-	fn new() -> BoardSubcomponent {
-		BoardSubcomponent{
-			canvas: NodeRef::default(),
-		}
-	}
-
-	fn view<'a>(&self, _ctx: &Context<Self::Component>,
-			_props: Props<'a>) -> Html {
-		html! {
-			<canvas class="board" width=0 height=0
-				ref={self.canvas.clone()}>
-			</canvas>
-		}
-	}
-
-	fn rendered<'a>(&self, _ctx: &Context<Self::Component>,
-			props: Props<'a>, _first: bool) {
-		// get board canvas
-        let canvas = self.canvas.cast::<HtmlCanvasElement>()
-        	.expect("element should be a canvas");
+	let board = props.board.clone();
+	let piece = props.piece.clone();
+	let canvas = use_canvas(move |canvas, context| {
 		let width = canvas.offset_width() as f64;
 		let height = canvas.offset_height() as f64;
-		canvas.set_width(width as u32);
-		canvas.set_height(height as u32);
-		// get rendering context
-		let context = canvas.get_context("2d")
-			.expect("canvas should have context")
-			.expect("context element should be supported")
-		.dyn_into::<CanvasRenderingContext2d>()
-			.expect("element should be a context");
-		// get the size of each individual mino
-		let size = width / 10.0;
+		let block_size = width / 10.0;
 		// draw the background
 		context.set_fill_style(&JsValue::from_str("#111"));
-    	context.fill_rect(0.0, 0.0, width,
-    		height - size * 20.0);
+    	context.fill_rect(0.0, 0.0,
+    		width, height - block_size * 20.0);
 		context.set_fill_style(&JsValue::from_str("#222"));
-    	context.fill_rect(0.0, height - size * 20.0,
-    		width, size * 20.0);
+    	context.fill_rect(0.0, height - block_size * 20.0,
+    		width, block_size * 20.0);
     	// draw each board mino
     	for y in 0..26 {
     		if y == 20 {
@@ -101,48 +55,168 @@ impl Subcomponent for BoardSubcomponent {
     		}
     		for x in 0..10 {
     			let pos = Position::new(x, y);
-    			if let Some(mino) = props.board[pos] {
+    			if let Some(mino) = board[pos] {
 					context.set_fill_style(&JsValue::from_str(
-						get_mino_css_color(mino)));
+						match mino {
+							Mino::Piece(PieceType::I) => "#07B",
+							Mino::Piece(PieceType::O) => "#A80",
+							Mino::Piece(PieceType::J) => "#00B",
+							Mino::Piece(PieceType::L) => "#A30",
+							Mino::Piece(PieceType::S) => "#080",
+							Mino::Piece(PieceType::Z) => "#900",
+							Mino::Piece(PieceType::T) => "#617",
+							Mino::Gray => "#666",
+						}));
 					context.fill_rect(
-						size * x as f64,
-						height - size * (y + 1) as f64,
-						size + 0.5, size + 0.5);
+						block_size * x as f64,
+						height - block_size * (y + 1) as f64,
+						block_size + 0.5, block_size + 0.5);
     			}
     		}
     	}
 		// draw the active piece
-		if let Some(piece) = props.piece {
-			context.set_global_alpha(1.0);
+		if let Some(piece) = &piece {
 			context.set_fill_style(&JsValue::from_str(
-				get_piece_css_color(piece.get_type())));
-			for pos in piece.get_mino_positions() {
-				context.fill_rect(
-					size * pos.x as f64,
-					height - size * (pos.y + 1) as f64,
-					size + 0.5, size + 0.5);
+				match piece.get_type() {
+					PieceType::I => "#29D",
+					PieceType::O => "#CA0",
+					PieceType::J => "#03D",
+					PieceType::L => "#C51",
+					PieceType::S => "#1A1",
+					PieceType::Z => "#C12",
+					PieceType::T => "#819",
+				}));
+			match piece {
+				MaybeActive::Active(active) => {
+					context.set_global_alpha(1.0);
+					for pos in active.get_mino_positions() {
+						let x = pos.x as f64;
+						let y = pos.y as f64;
+						context.fill_rect(
+							block_size * x as f64,
+							height - block_size * (y + 1.0),
+							block_size + 0.5, block_size + 0.5);
+					}
+					context.set_global_alpha(0.5);
+					for pos in active.get_ghost(&board)
+						.get_mino_positions() {
+						let x = pos.x as f64;
+						let y = pos.y as f64;
+						context.fill_rect(
+							block_size * x,
+							height - block_size * (y + 1.0),
+							block_size + 0.5, block_size + 0.5);
+					}
+				}
+				MaybeActive::Inactive(current) => {
+					context.set_global_alpha(0.5);
+					let active = ActivePiece::spawn_unchecked(
+						*current, Rotation::Zero);
+					for pos in active.get_mino_positions() {
+						let x = pos.x as f64;
+						let y = pos.y as f64;
+						context.fill_rect(
+							block_size * x,
+							height - block_size * (y + 1.0),
+							block_size + 0.5, block_size + 0.5);
+					}
+				}
+			}	
+		}
+	});
+
+	let node_ref = canvas.clone();
+	let get_position = Rc::new(move |x, y| {
+		let rect = node_ref.cast::<HtmlElement>()
+	    	.expect("node ref should be an html element")
+	    	.get_bounding_client_rect();
+	    let cx = rect.x() as f64;
+	    let cy = (rect.y() + rect.height()) as f64;
+	    let cs = rect.width() as f64 / 10.0;
+		Position::new(
+			((x - cx) / cs) as i32,
+			((cy - y) / cs) as i32)
+	});
+
+	let onmouse = props.onmouse.clone();
+	let position = state_position.clone();
+	let get_pos = get_position.clone();
+	let onmousedown = Callback::from(move |e: MouseEvent|
+		if e.button() == 0 {
+			let pos = get_pos(
+				e.client_x() as f64,
+				e.client_y() as f64);
+			if Board::in_bounds(pos) {
+				position.set(Some(pos));
+				onmouse.emit(BoardMouseEvent::Press(pos));
 			}
-			// draw the ghost piece
-			context.set_global_alpha(0.5);
-			for pos in piece.get_ghost(props.board)
-				.get_mino_positions() {
-				context.fill_rect(
-					size * pos.x as f64,
-					height - size * (pos.y + 1) as f64,
-					size + 0.5, size + 0.5);
+		});
+	let onmouse = props.onmouse.clone();
+	let position = state_position.clone();
+	let get_pos = get_position.clone();
+	let onmousemove = Callback::from(move |e: MouseEvent|
+		if e.buttons() % 2 == 1 {
+			if let Some(old_pos) = *position {
+				let pos = get_pos(
+					e.client_x() as f64,
+					e.client_y() as f64);
+				if pos != old_pos &&
+					Board::in_bounds(pos) {
+					position.set(Some(pos));
+					onmouse.emit(BoardMouseEvent::Move(pos));
+				}
 			}
 		} else {
-			context.set_fill_style(&JsValue::from_str(
-				get_piece_css_color(props.current)));
-			context.set_global_alpha(0.5);
-			let piece = ActivePiece::spawn_unchecked(
-				props.current, Rotation::Zero);
-			for pos in piece.get_mino_positions() {
-				context.fill_rect(
-					size * pos.x as f64,
-					height - size * (pos.y + 1) as f64,
-					size + 0.5, size + 0.5);
+			position.set(None);
+		});
+	let position = state_position.clone();
+	let onmouseup = Callback::from(move |e: MouseEvent|
+		if e.button() == 0 {
+			position.set(None);
+		});
+	let onmouse = props.onmouse.clone();
+	let position = state_position.clone();
+	let get_pos = get_position.clone();
+	let ontouchstart = Callback::from(move |e: TouchEvent| {
+		e.prevent_default();
+		let touch = e.target_touches().get(0)
+			.expect("should be at least one touch");
+		let pos = get_pos(
+			touch.client_x() as f64,
+			touch.client_y() as f64);
+		if Board::in_bounds(pos) {
+			position.set(Some(pos));
+			onmouse.emit(BoardMouseEvent::Press(pos));
+		}
+	});
+	let onmouse = props.onmouse.clone();
+	let position = state_position.clone();
+	let get_pos = get_position.clone();
+	let ontouchmove = Callback::from(move |e: TouchEvent| {
+		e.prevent_default();
+		let touch = e.target_touches().get(0)
+			.expect("should be at least one touch");
+		if let Some(old_pos) = *position {
+			let pos = get_pos(
+				touch.client_x() as f64,
+				touch.client_y() as f64);
+			if pos != old_pos &&
+				Board::in_bounds(pos) {
+				position.set(Some(pos));
+				onmouse.emit(BoardMouseEvent::Move(pos));
 			}
 		}
-    }
+	});
+	let position = state_position.clone();
+	let ontouchend = Callback::from(move |e: TouchEvent| {
+		e.prevent_default();
+		position.set(None);
+	});
+	html! {
+		<canvas class="board" width=0 height=0
+			ref={canvas.clone()}
+        	{onmousedown} {onmousemove} {onmouseup}
+        	{ontouchstart} {ontouchmove} {ontouchend}>
+		</canvas>
+	}
 }

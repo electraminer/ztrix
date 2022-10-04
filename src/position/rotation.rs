@@ -1,6 +1,9 @@
+use crate::serialize::FromChars;
 use std::ops::Add;
 use std::ops::Neg;
 use std::ops::Sub;
+
+use std::fmt;
 
 #[derive(Debug, Copy, Clone, Eq, Hash, PartialEq)]
 pub enum Rotation {
@@ -56,5 +59,31 @@ impl Sub for Rotation {
 	type Output = Rotation;
 	fn sub(self, rot: Rotation) -> Rotation {
 		self + rot.neg()
+	}
+}
+
+impl fmt::Display for Rotation {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		let chr = match self {
+			Rotation::Zero => '0',
+			Rotation::Clockwise => 'C',
+			Rotation::Flip => '2',
+			Rotation::Anticlockwise => 'A',
+		};
+		write!(f, "{}", chr)
+	}
+}
+
+impl FromChars for Rotation {
+	fn from_chars<I>(chars: &mut I) -> Result<Self, ()>
+	where 	I: Iterator<Item = char>,
+			Self: Sized {
+		Ok(match chars.next().ok_or(())? {
+			'0' => Rotation::Zero,
+			'C' => Rotation::Clockwise,
+			'2' => Rotation::Flip,
+			'A' => Rotation::Anticlockwise,
+			_ => return Err(())
+		})
 	}
 }

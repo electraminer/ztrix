@@ -5,3 +5,5 @@ pub mod position;
 pub mod game;
 
 pub mod replay;
+
+pub mod serialize;

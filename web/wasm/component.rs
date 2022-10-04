@@ -1,12 +1,20 @@
-pub mod subcomponent;
-
-pub mod game_interface;
-
-pub mod game;
-pub mod piece_box;
-pub mod board;
-pub mod queue;
+pub mod canvas;
 
 pub mod button;
+pub mod keyboard_interface;
 
+pub mod piece_box;
+pub mod queue;
+
+pub mod board;
+
+pub mod game;
+
+pub mod play_interface;
 pub mod edit_interface;
+
+pub mod key_binding;
+
+pub mod binding_interface;
+
+pub mod router;

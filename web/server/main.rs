@@ -1,22 +1,11 @@
 extern crate rouille;
 use std::fs::File;
-use std::path::Path;
+
 use rouille::Response;
 
 fn main() {
 	rouille::start_server("0.0.0.0:80", move |request| {
 		println!("{}", request.url());
-
-		// Return specific HTML files
-		if let Some(name) = match request.url().as_str() {
-			"/" => Some("ztrix.html"),
-			_ => None,
-		} {
-			let path = Path::new("./web/html").join(name);
-			let file = File::open(path).expect(
-				"manually listed file should exist");
-			return Response::from_file("text/html", file);
-		}
 
 		// Return generic HTML files
 		if let Some(request) = request.remove_prefix("/html") {
@@ -35,6 +24,15 @@ fn main() {
 			return rouille::match_assets(&request, "./web/assets");
 		}
 
-		return Response::empty_404();
+		if request.url() == "/favicon.ico" {
+			let file = File::open("./web/assets/favicon.png")
+				.expect("manually listed file should exist");
+			return Response::from_file("image/png", file);
+		}
+
+		// Return single page application
+		let file = File::open("./web/html/ztrix.html")
+			.expect("manually listed file should exist");
+		return Response::from_file("text/html", file);
 	});
 }

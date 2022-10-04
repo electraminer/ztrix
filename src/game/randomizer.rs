@@ -1,13 +1,16 @@
 
+use crate::serialize::FromChars;
 use crate::game::PieceType;
 use crate::replay::Info;
 
 use enumset::EnumSet;
 use enumset::EnumSetIter;
 
+use std::fmt;
+
 #[derive(Clone, Eq, Hash, PartialEq)]
 pub struct BagRandomizer {
-	set: EnumSet<PieceType>,
+	pub set: EnumSet<PieceType>,
 }
 
 impl BagRandomizer {
@@ -29,5 +32,30 @@ impl BagRandomizer {
 			self.set = EnumSet::all();
 		}
 		next
+	}
+}
+
+impl fmt::Display for BagRandomizer {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		for piece in self.set.iter() {
+			write!(f, "{}", piece)?;
+		}
+		write!(f, ".")
+	}
+}
+
+impl FromChars for BagRandomizer {
+	fn from_chars<I>(chars: &mut I) -> Result<Self, ()>
+	where 	I: Iterator<Item = char>,
+			Self: Sized {
+		let mut chars = chars.peekable();
+		let mut set = EnumSet::empty();
+		while *chars.peek().ok_or(())? != '.' {
+			let piece = PieceType::from_chars(&mut chars)?;
+			set.insert(piece);
+		}
+		Ok(BagRandomizer {
+			set: set,
+		})
 	}
 }

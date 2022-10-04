@@ -1,84 +1,67 @@
-use ztrix::game::PieceType;
-use component::piece_box;
-use component::piece_box::PieceBoxSubcomponent;
-use ztrix::game::Queue;
+use controller::input_handler::ButtonEvent;
+use crate::component::button::ButtonComponent;
+use crate::component::piece_box::PieceBoxComponent;
 
-use component::subcomponent::Subcomponent;
-use component::button;
-use component::game_interface::GameInterface;
+use ztrix::game::PieceType;
+use ztrix::game::Queue;
 
 use yew::prelude::*;
 
-fn get_piece_char(piece: PieceType) -> char {
-	match piece {
-		PieceType::S => 'S',
-		PieceType::Z => 'Z',
-		PieceType::J => 'J',
-		PieceType::T => 'T',
-		PieceType::L => 'L',
-		PieceType::O => 'O',
-		PieceType::I => 'I',
-	}
+#[derive(Copy, Clone)]
+pub enum QueueButton {
+	NextBox(usize),
+	BagInfo,
 }
 
-pub struct QueueSubcomponent {
-	boxes: [PieceBoxSubcomponent; 4]
+#[derive(Properties, PartialEq)]
+pub struct Props {
+	pub queue: Queue,
+
+	#[prop_or_default]
+	pub onbutton: Callback<ButtonEvent<QueueButton>>
 }
 
-impl Subcomponent for QueueSubcomponent {
-	type Component = GameInterface;
-	type Properties<'a> = &'a Queue;
+#[function_component(QueueComponent)]
+pub fn queue(props: &Props) -> Html {
+	let bag_str: String = props.queue.rando.options()
+		.map(|p| match p {
+			PieceType::I => 'I',
+			PieceType::O => 'O',
+			PieceType::J => 'J',
+			PieceType::L => 'L',
+			PieceType::S => 'S',
+			PieceType::Z => 'Z',
+			PieceType::T => 'T',
+		}).collect();
+	let bag_pos = (bag_str.len() + 4) % 7;
+	let bag_indicator = |i: usize| html! {
+		<hr class={classes!(
+			"spacer",
+			(bag_pos == i).then_some("bag-pos"),
+		)}/>
+	};
+	let onbutton = |b: QueueButton|
+		props.onbutton.reform(move |e: ButtonEvent<()>|
+			e.map(|_| b));
 
-	fn new() -> QueueSubcomponent {
-		QueueSubcomponent{
-			boxes: [0; 4].map(|_| PieceBoxSubcomponent::new()),
-		}
-	}
-
-	fn view<'a>(&self, ctx: &Context<Self::Component>,
-			queue: &'a Queue) -> Html {
-		let bag: String = queue.get_rando().options()
-			.map(|p| get_piece_char(p))
-			.collect();
-		let indicator = (bag.len() + 4) % 7;
-		let func = |i| if indicator == i {
-			None
-		} else {
-			Some("visibility: hidden")
-		};
-		html! {
-			<div class="queue">
-				{
-					self.boxes.iter().enumerate().map(|(i, b)|
-						html! {<>
-							<hr class="indicator"
-								style={func(i)}/>
-							{button::view_button_custom(ctx,
-								format! { "RerollNext{}", i+1},
-								b.view(ctx, piece_box::Props{
-									piece: Some(queue.get(i)),
-									grayed: false,
-							}))}
-						</>})
-						.collect::<Html>()
-				}
-				<hr class="indicator"
-					style={func(4)}/>
+	html! {
+		<div class="queue">
+			{for (0..4).map(|i|
+				html! { <>
+					{bag_indicator(i)}
+					<PieceBoxComponent
+						piece={Some(props.queue.get(i))}
+						onbutton={onbutton(
+							QueueButton::NextBox(i))}/>
+				</> }
+			)}
+			{bag_indicator(4)}
+			<ButtonComponent onbutton={onbutton(
+				QueueButton::BagInfo)}>
         		<p><strong>{"BAG"}</strong></p>
-        		<p>{bag}</p>
-				<hr class="indicator"
-					style={func(5)}/>
-			</div>
-		}
+        		<p class="bag-text">{bag_str}</p>
+        	</ButtonComponent>
+			{bag_indicator(5)}
+		</div>
 	}
-
-	fn rendered<'a>(&self, ctx: &Context<Self::Component>,
-			queue: &'a Queue, first: bool) {
-		for (i, b) in self.boxes.iter().enumerate() {
-			b.rendered(ctx, piece_box::Props{
-				piece: Some(queue.get(i)),
-				grayed: false,
-			}, first);
-		}
-    }
 }

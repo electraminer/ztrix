@@ -1,144 +1,94 @@
+use std::collections::HashMap;
+use std::hash::Hash;
 use instant::Duration;
-
-use enum_map::EnumMap;
-use std::collections::HashSet;
-use enum_map::Enum;
-
-use enum_map::enum_map;
 
 use instant::Instant;
 
-#[derive(Debug)]
-pub enum InputEvent {
-	KeyDown(String),
-	KeyUp(String),
-	BtnTouchDown(String),
-	BtnTouchUp(String),
-	BtnClick(String),
-	LostFocus,
-	GainedFocus,
-	TimePassed,
+pub enum ButtonEvent<B> {
+	Press(B),
+	Release(B),
 }
 
-pub trait InputBindings<V>
-where	V: Copy + Enum + enum_map::EnumArray<u32> + enumset::EnumSetType {
-	fn map_key(&self, code: &String) -> Option<V>;
-	fn map_button(&self, code: &String) -> Option<V>;
+impl<B> ButtonEvent<B> {
+	pub fn map<F, U>(self, func: F) -> ButtonEvent<U>
+	where	F: Fn(B) -> U {
+		match self {
+			ButtonEvent::Press(b) =>
+				ButtonEvent::Press(func(b)),
+			ButtonEvent::Release(b) =>
+				ButtonEvent::Release(func(b)),
+		}
+	}
 }
 
-#[derive(Copy, Clone, Debug)]
-pub enum VirtualInputEvent<V>
-where	V: Copy + Enum + enum_map::EnumArray<u32> + enumset::EnumSetType {
-	Pressed(V),
-	Released(V),
-	TimePassed(Duration),
+impl<B> ButtonEvent<B> {
+	pub fn maybe_map<F, U>(self, func: F)
+			-> Option<ButtonEvent<U>>
+	where	F: Fn(B) -> Option<U> {
+		match self {
+			ButtonEvent::Press(b) => match func(b) {
+				None => None,
+				Some(b) => Some(ButtonEvent::Press(b)),
+			}
+			ButtonEvent::Release(b) => match func(b) {
+				None => None,
+				Some(b) => Some(ButtonEvent::Release(b)),
+			}
+		}
+	}
 }
 
-pub struct InputHandler<V>
-where	V: Copy + Enum + enum_map::EnumArray<u32> + enumset::EnumSetType {
-	pressed_keys: HashSet<String>,
-	pressed_buttons: HashSet<String>,
-	pressed_action_count: EnumMap<V, u32>,
+pub enum InputEvent<B> {
+	Button(ButtonEvent<B>),
+	PassTime(Duration),
+}
+
+pub struct InputHandler<B>
+where	B: Copy + Hash + Eq {
+	pressed_count: HashMap<B, u32>,
 	start_time: Instant,
 	time: Duration,
-	touched: bool,
-	focused: bool,
 }
 
-impl<V> InputHandler<V>
-where	V: Copy + Enum + enum_map::EnumArray<u32> + enumset::EnumSetType {
-	pub fn new() -> InputHandler<V> {
-		InputHandler{
-			pressed_keys: HashSet::new(),
-			pressed_buttons: HashSet::new(),
-			pressed_action_count: enum_map! { _ => 0 },
+impl<B> InputHandler<B>
+where	B: Copy + Hash + Eq {
+	pub fn new() -> Self {
+		Self {
+			pressed_count: HashMap::new(),
 			start_time: Instant::now(),
 			time: Duration::ZERO,
-			touched: false,
-			focused: true,
 		}
 	}
 
-	fn add_press(&mut self, action: V)
-			-> Vec<VirtualInputEvent<V>> {
-		let count = self.pressed_action_count[action];
-		self.pressed_action_count[action] += 1;
-		if count == 0 {
-			return vec![VirtualInputEvent::Pressed(action)]
-		}
-		Vec::new()
-	}
-
-	fn remove_press(&mut self, action: V)
-			-> Vec<VirtualInputEvent<V>> {
-		self.pressed_action_count[action] -= 1;
-		let count = self.pressed_action_count[action];
-		if count == 0 {
-			return vec![VirtualInputEvent::Released(action)]
-		}
-		Vec::new()
-	}
-
-	pub fn update<B>(&mut self, event: InputEvent,
-			bindings: &B) -> Vec<VirtualInputEvent<V>>
-	where	B: InputBindings<V> {
+	pub fn button_event(&mut self, event: ButtonEvent<B>)
+			-> Option<InputEvent<B>> {
     	match event {
-    		InputEvent::KeyDown(code) => {
-    			if let Some(action) = bindings.map_key(&code) {
-					if self.pressed_keys.insert(code) {
-						return self.add_press(action);
-					}
-    			}},
-    		InputEvent::KeyUp(code) => {
-    			if let Some(action) = bindings.map_key(&code) {
-	    			if self.pressed_keys.remove(&code) {
-	    				return self.remove_press(action);
-    				}
-    			}},
-    		InputEvent::BtnTouchDown(code) => {
-    			if let Some(action) = bindings.map_button(&code) {
-	    			if self.pressed_buttons.insert(code) {
-	    				return self.add_press(action);
-	    			}
-    			}},
-    		InputEvent::BtnTouchUp(code) => {
-    			if let Some(action) = bindings.map_button(&code) {
-	    			if self.pressed_buttons.remove(&code) {
-	    				self.touched = true;
-	    				return self.remove_press(action);
-	    			}
-    			}},
-    		InputEvent::BtnClick(code) => {
-    			if self.touched {
-    				self.touched = false;
-    			} else if let Some(action) = bindings.map_button(&code) {
-	    			if !self.pressed_buttons.contains(&code) {
-	    				let mut vec = self.add_press(action);
-	    				vec.append(&mut self.remove_press(action));
-	    				return vec;
-	    			}
-    			}},
-    		InputEvent::LostFocus => self.focused = false,
-    		InputEvent::GainedFocus => self.focused = true,
-    		InputEvent::TimePassed => {
-	    		let mut vec = Vec::new();
-    			if !self.focused {
-	    			let keys: Vec<String> = self.pressed_keys.drain()
-	    				.collect();
-	    			for code in keys {
-	    				if let Some(action) = bindings.map_key(&code) {
-	    					let mut v = self.remove_press(action);
-	    					vec.append(&mut v);
-	    				}
-	    			}
-    			}
-    			let prev_time = self.time;
-    			self.time = self.start_time.elapsed();
-    			let time_elapsed = self.time - prev_time;
-    			vec.push(VirtualInputEvent::TimePassed(time_elapsed));
-    			return vec;
-    		}
-    	}
-    	Vec::new()
+    		ButtonEvent::Press(button) => {
+    			let count = *self.pressed_count.get(&button)
+    				.unwrap_or(&0);
+				self.pressed_count.insert(button, count + 1);
+				(count == 0).then_some(
+					InputEvent::Button(event))
+			},
+    		ButtonEvent::Release(button) => {
+    			let count = *self.pressed_count.get(&button)
+    				.unwrap_or(&0);
+    			self.pressed_count.insert(button, match count {
+    				0 => 0,
+    				c => c - 1,
+    			});
+				(count == 1).then_some(
+					InputEvent::Button(event))
+
+			},
+		}
+	}
+
+	pub fn time_passed(&mut self)
+		-> InputEvent<B> {
+		let prev_time = self.time;
+		self.time = self.start_time.elapsed();
+		let time_elapsed = self.time - prev_time;
+		InputEvent::PassTime(time_elapsed)
 	}
 }

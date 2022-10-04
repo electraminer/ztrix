@@ -1,13 +1,14 @@
+use std::collections::HashSet;
+use ztrix::game::Action;
+use controller::input_handler::InputEvent;
+use controller::input_handler::ButtonEvent;
 use ztrix::replay::Replay;
+use ztrix::game::MaybeActive;
 use user_prefs::UserPrefs;
-use controller::action::MetaAction;
-use enumset::EnumSet;
-use controller::input_handler::VirtualInputEvent;
+
 use std::time::Duration;
-
+use crate::component::play_interface::PlayButton;
 use ztrix::position::Rotation;
-
-use controller::action::Action;
 use serde::Serialize;
 use serde::Deserialize;
 
@@ -41,8 +42,18 @@ enum DasDirection {
 	None
 }
 
+#[derive(Copy, Clone)]
+pub enum MetaAction {
+	Action(Action),
+    Revert,
+    Undo,
+    Redo,
+    Reroll(usize),
+	Restart,
+}
+
 pub struct ActionHandler {
-	held: EnumSet<Action>,
+	held: HashSet<PlayButton>,
 	das_priority: DasDirection,
 	das_timer: Duration,
 	down_das_timer: Duration,
@@ -56,7 +67,7 @@ impl ActionHandler {
 
 	pub fn new() -> ActionHandler {
 		ActionHandler{
-			held: EnumSet::empty(),
+			held: HashSet::new(),
 			das_priority: DasDirection::None,
 			das_timer: Duration::ZERO,
 			down_das_timer: Duration::ZERO,
@@ -69,21 +80,21 @@ impl ActionHandler {
 
 	fn irs(&self) -> Rotation {
 		let mut irs = Rotation::Zero;
-		if self.held.contains(Action::Clockwise) {
+		if self.held.contains(&PlayButton::Clockwise) {
 			irs = irs + Rotation::Clockwise;
 		}
-		if self.held.contains(Action::Anticlockwise) {
+		if self.held.contains(&PlayButton::Anticlockwise) {
 			irs = irs + Rotation::Anticlockwise;
 		}
-		if self.held.contains(Action::Flip) {
+		if self.held.contains(&PlayButton::Flip) {
 			irs = irs + Rotation::Flip;
 		}
 		irs
 	}
 
 	fn das(&self) -> DasDirection {
-		let left = self.held.contains(Action::Left);
-		let right = self.held.contains(Action::Right);
+		let left = self.held.contains(&PlayButton::Left);
+		let right = self.held.contains(&PlayButton::Right);
 		if !left && !right {
 			DasDirection::None
 		} else if left && !right {
@@ -95,60 +106,60 @@ impl ActionHandler {
 		}
 	}
 
-	pub fn press(&mut self, replay: &Replay, action: Action)
+	pub fn press(&mut self, replay: &Replay, button: PlayButton)
 			-> Vec<MetaAction> {
 		let user_prefs = UserPrefs::get();
 		let handling_settings = user_prefs.get_handling_settings();
-		self.held.insert(action);
+		self.held.insert(button);
 		self.frozen = false;
 		let mut vec = Vec::new();
 		let game = replay.get_game();
-		if let None = game.get_piece() {
-			if matches!{action, Action::Left | Action::Right |
-				Action::DownSlow | Action::Place} {
+		if let MaybeActive::Inactive(_) = game.piece {
+			if matches!{button, PlayButton::Left | PlayButton::Right |
+				PlayButton::DownSlow | PlayButton::Place} {
 				vec.push(MetaAction::Action(
-					ztrix::game::Action::SpawnPiece(
+					Action::SpawnPiece(
 	    				self.irs(),
-	    				self.held.contains(Action::Hold))));
+	    				self.held.contains(&PlayButton::Hold))));
 			}
 		}
-		if matches!{action, Action::Left | Action::Right |
-			Action::DownSlow | Action::DownFast | Action::Place
-			| Action::Clockwise | Action::Anticlockwise
-			| Action::Flip | Action::Hold | Action::Zone} {
+		if matches!{button, PlayButton::Left | PlayButton::Right |
+			PlayButton::DownSlow | PlayButton::DownFast | PlayButton::Place
+			| PlayButton::Clockwise | PlayButton::Anticlockwise
+			| PlayButton::Flip | PlayButton::Hold | PlayButton::Zone} {
 			self.moved = true;
 		}
-		vec.append(&mut match action {
-    		Action::Left => {
+		vec.append(&mut match button {
+    		PlayButton::Left => {
     			self.das_priority = DasDirection::Left;
     			self.das_timer = handling_settings.das_duration;
     			vec![MetaAction::Action(
-    				ztrix::game::Action::MoveLeft)]},
-		    Action::Right => {
+    				Action::MoveLeft)]},
+		    PlayButton::Right => {
     			self.das_priority = DasDirection::Right;
     			self.das_timer = handling_settings.das_duration;
     			vec![MetaAction::Action(
-    				ztrix::game::Action::MoveRight)]},
-		   	Action::DownSlow => {
+    				Action::MoveRight)]},
+		   	PlayButton::DownSlow => {
     			self.down_das_timer = handling_settings.down_das_duration;
     			vec![MetaAction::Action(
-    				ztrix::game::Action::MoveDown)]},
-		    Action::DownFast => vec![],
-		    Action::Clockwise => vec![MetaAction::Action(
-		    	ztrix::game::Action::Rotate(Rotation::Clockwise))],
-		    Action::Anticlockwise => vec![MetaAction::Action(
-		    	ztrix::game::Action::Rotate(Rotation::Anticlockwise))],
-		    Action::Flip => vec![MetaAction::Action(
-		    	ztrix::game::Action::Rotate(Rotation::Flip))],
-		    Action::Place => {
+    				Action::MoveDown)]},
+		    PlayButton::DownFast => vec![],
+		    PlayButton::Clockwise => vec![MetaAction::Action(
+		    	Action::Rotate(Rotation::Clockwise))],
+		    PlayButton::Anticlockwise => vec![MetaAction::Action(
+		    	Action::Rotate(Rotation::Anticlockwise))],
+		    PlayButton::Flip => vec![MetaAction::Action(
+		    	Action::Rotate(Rotation::Flip))],
+		    PlayButton::Place => {
 		    	self.entry_delay_timer = handling_settings.entry_delay;
-		    	vec![MetaAction::Action(ztrix::game::Action::PlacePiece(
-    				self.irs(), self.held.contains(Action::Hold)))]},
-	    	Action::Hold => vec![MetaAction::Action(
-	    		ztrix::game::Action::HoldPiece(self.irs()))],
-	    	Action::Zone => vec![MetaAction::Action(
-	    		ztrix::game::Action::ToggleZone)],
-	    	Action::Undo => {
+		    	vec![MetaAction::Action(Action::PlacePiece(
+    				self.irs(), self.held.contains(&PlayButton::Hold)))]},
+	    	PlayButton::Hold => vec![MetaAction::Action(
+	    		Action::HoldPiece(self.irs()))],
+	    	PlayButton::Zone => vec![MetaAction::Action(
+	    		Action::ToggleZone)],
+	    	PlayButton::Undo => {
 	    		self.frozen = true;
 	    		if self.moved {
 	    			vec![MetaAction::Revert]
@@ -156,41 +167,23 @@ impl ActionHandler {
 	    			vec![MetaAction::Undo]
 	    		}
 	    	}
-	    	Action::Redo => {
+	    	PlayButton::Redo => {
 	    		self.frozen = true;
 	    		vec![MetaAction::Redo]
 	    	}
-	    	Action::RerollCurrent => {
-	    		if replay.get_frame() >= 5 {
+	    	PlayButton::RerollCurrent => {
+	    		if replay.get_frame() >= 4 + 1 {
 	    			self.frozen = true;
 	    		}
-	    		vec![MetaAction::Reroll(5)]
+	    		vec![MetaAction::Reroll(4 + 1)]
 	    	}
-	    	Action::RerollNext1 => {
-	    		if replay.get_frame() >= 4 {
+	    	PlayButton::RerollNext(n) => {
+	    		if replay.get_frame() >= 4 - n + 1 {
 	    			self.frozen = true;
 	    		}
-	    		vec![MetaAction::Reroll(4)]
+	    		vec![MetaAction::Reroll(4 - n + 1)]
 	    	}
-	    	Action::RerollNext2 => {
-	    		if replay.get_frame() >= 3 {
-	    			self.frozen = true;
-	    		}
-	    		vec![MetaAction::Reroll(3)]
-	    	}
-	    	Action::RerollNext3 => {
-	    		if replay.get_frame() >= 2 {
-	    			self.frozen = true;
-	    		}
-	    		vec![MetaAction::Reroll(2)]
-	    	}
-	    	Action::RerollNext4 => {
-	    		if replay.get_frame() >= 1 {
-	    			self.frozen = true;
-	    		}
-	    		vec![MetaAction::Reroll(1)]
-	    	}
-	    	Action::Restart => {
+	    	PlayButton::Restart => {
 	    		self.reset_timer = handling_settings.reset_duration;
 	    		if self.reset_timer == Duration::ZERO {
 	    			self.frozen = true;
@@ -206,9 +199,9 @@ impl ActionHandler {
 		vec
 	}
 
-	pub fn release(&mut self, _replay: &Replay, action: Action)
+	pub fn release(&mut self, _replay: &Replay, button: PlayButton)
 			 -> Vec<MetaAction> {
-		self.held.remove(action);
+		self.held.remove(&button);
 		vec![]
 	}
 
@@ -222,7 +215,7 @@ impl ActionHandler {
 		let handling_settings = user_prefs.get_handling_settings();
 		let mut vec = Vec::new();
 		if self.reset_timer < duration {
-			if self.held.contains(Action::Restart) {
+			if self.held.contains(&PlayButton::Restart) {
 	    		self.frozen = true;
 				vec.push(MetaAction::Restart);
 			}
@@ -231,10 +224,10 @@ impl ActionHandler {
 		}
 
 		if self.entry_delay_timer < duration {
-			if let None = game.get_piece() {
+			if let MaybeActive::Inactive(_) = game.piece {
 				vec.push(MetaAction::Action(
-					ztrix::game::Action::SpawnPiece(
-    					self.irs(), self.held.contains(Action::Hold))));
+					Action::SpawnPiece(
+    					self.irs(), self.held.contains(&PlayButton::Hold))));
 				self.moved = false;
 			}
 		} else {
@@ -244,9 +237,9 @@ impl ActionHandler {
 		let mut max_iter = 20;
 		while self.down_das_timer < duration {
 			self.down_das_timer += handling_settings.down_arr_duration;
-			if self.held.contains(Action::DownSlow) {
+			if self.held.contains(&PlayButton::DownSlow) {
 				vec.push(MetaAction::Action(
-    				ztrix::game::Action::MoveDown));
+    				Action::MoveDown));
 			}
 			max_iter -= 1;
 			if max_iter == 0 {
@@ -254,9 +247,9 @@ impl ActionHandler {
 			}
 		}
 		self.down_das_timer -= duration;
-		if self.held.contains(Action::DownFast) {
+		if self.held.contains(&PlayButton::DownFast) {
 			vec.append(&mut vec![MetaAction::Action(
-	   			ztrix::game::Action::MoveDown); 20]);
+	   			Action::MoveDown); 20]);
 		}
 
 		let mut max_iter = 10;
@@ -265,9 +258,9 @@ impl ActionHandler {
 			match self.das() {
 				DasDirection::None => (),
 				DasDirection::Left => vec.push(MetaAction::Action(
-    				ztrix::game::Action::MoveLeft)),
+    				Action::MoveLeft)),
 				DasDirection::Right => vec.push(MetaAction::Action(
-    				ztrix::game::Action::MoveRight)),
+    				Action::MoveRight)),
 			}
 			max_iter -= 1;
 			if max_iter == 0 {
@@ -279,13 +272,15 @@ impl ActionHandler {
 	}
 
 	pub fn update(&mut self, replay: &Replay,
-		event: VirtualInputEvent<Action>) -> Vec<MetaAction> {
+		event: InputEvent<PlayButton>) -> Vec<MetaAction> {
 		match event {
-			VirtualInputEvent::Pressed(action) =>
-				self.press(replay, action),
-			VirtualInputEvent::Released(action) =>
-				self.release(replay, action),
-			VirtualInputEvent::TimePassed(duration) =>
+			InputEvent::Button(
+				ButtonEvent::Press(button)) =>
+					self.press(replay, button),
+			InputEvent::Button(
+				ButtonEvent::Release(button)) =>
+					self.release(replay, button),
+			InputEvent::PassTime(duration) =>
 				self.pass_time(replay, duration),
 		}
 	}

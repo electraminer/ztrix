@@ -1,5 +1,3 @@
-pub mod action;
-
 pub mod input_handler;
 
 pub mod action_handler;
