@@ -1,0 +1,329 @@
+html, body, #content {
+	width: 100%;
+	height: 100%;
+	margin: 0;
+
+	background-color: #111;
+	overscroll-behavior-y: none;
+
+	display: flex;
+	flex-direction: row;
+	justify-content: center;
+}
+
+.interface {
+	width: 98%;
+	padding: 1%;
+
+	outline: none;
+
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	align-items: center;
+	gap: 1%;
+}
+
+.row {
+	flex: 1;
+
+	display: flex;
+	aspect-ratio: 160/26;
+	max-width: 100%;
+}
+
+.thin-row {
+	flex: 1;
+
+	display: flex;
+	aspect-ratio: 160/20;
+	max-width: 100%;
+}
+
+.game {
+	flex: 8;
+	max-width: 100%;
+
+	aspect-ratio: 20/26;
+
+	margin: 1% 0;
+
+	display: flex;
+}
+
+.board-column {
+	flex: 10;
+	aspect-ratio: 10/26;
+}
+
+.board-column.in-zone {
+	outline-style: solid;
+	outline-width: thick;
+	outline-color: #FFF;
+	filter: brightness(2.0);
+	/*filter: invert(100%) brightness(0.7) saturate(500%) contrast(200%);*/
+}
+
+.board-column.game-over {
+	outline-style: solid;
+	outline-width: thick;
+	outline-color: #C12;
+}
+
+.board {
+	width: 100%;
+	height: 100%;
+}
+
+.side-column {
+	flex: 5;
+	position: relative;
+}
+
+.middle-left, .middle-right {
+	width: 100%;
+	top: 20%;
+	position: absolute;
+}
+
+p {
+	color: #FFF;
+	text-align: center;
+	width: 100%;
+	margin: 0;
+	line-height: 1;
+	font-family: "Calibri", sans-serif;
+}
+
+.side-column button {
+	aspect-ratio: 4/2.75;
+	width: 80%;
+	margin: 0% 10%;
+	padding: 2px 0 0 0;
+}
+
+.piece-box {
+	aspect-ratio: 4/2;
+	width: 100%;
+}
+
+.spacer {
+	visibility: hidden;
+	width: 80%;
+	margin: 2.5% 10%;
+	background: #FFF;
+}
+
+.bag-pos {
+	visibility: visible;
+}
+
+.bag-text {
+	letter-spacing: 1px;
+}
+
+button {
+	border: 2px;
+	background-color: #222;
+	border-style: solid;
+	border-color: #000;
+	border-radius: 5px;
+	outline: none;
+	color: #FFF;
+}
+
+button:hover {
+	background-color: #333;
+}
+
+button:active {
+	background-color: #666;
+}
+
+button>img {
+	max-width: 100%;
+	max-height: 100%;
+	pointer-events: none;
+}
+
+.bottom-left, .bottom-right {
+	width: 100%;
+	bottom: 0%;
+	position: absolute;
+}
+
+.bottom-left>button, .bottom-right>button {
+	width: 80%;
+	aspect-ratio: 4/3;
+	margin: 5% 10% 0;
+}
+
+.top-left, .top-right {
+	width: 100%;
+	top: 0%;
+	position: absolute;
+
+}
+
+.top-left>button, .top-right>button {
+	width: 80%;
+	aspect-ratio: 4/3;
+}
+
+.row>* {
+	flex: 1;
+	margin: 0% 1%;
+	width: 0;
+}
+
+.thin-row>* {
+	flex: 1;
+}
+
+.scrollable {
+	flex: 8;
+	max-width: 100%;
+
+	aspect-ratio: 10/14;
+	background-color: #222;
+
+	padding: 0% 1%;
+
+	overflow-y: auto;
+}
+
+.scrollable>* {
+	margin: 1% 0;
+	align-items: center;
+}
+
+.binding-name, .binding-list {
+	flex: 2;
+}
+
+
+.add-binding, .remove-binding {
+	width: 100%;
+	height: 100%;
+	margin: 0 0.5%;
+}
+
+.add-binding>button, .remove-binding>button {
+	width: 100%;
+	height: 100%;
+}
+
+.add-binding>button {
+	background-color: #080;
+}
+
+.add-binding>button:hover {
+	background-color: #1A1;
+}
+
+.add-binding>button:focus {
+	background-color: #29D;
+}
+
+.remove-binding>button {
+	background-color: #900;
+}
+
+.remove-binding>button:hover {
+	background-color: #C12;
+}
+
+.remove-binding>button:active {
+	background-color: #C51;
+}
+
+.config-row {
+	flex: 1;
+
+	display: flex;
+	aspect-ratio: 5/1;
+	align-items: center;
+	max-width: 100%;
+}
+
+.config-row>* {
+	flex: 1;
+	width: 0;
+}
+
+.config-row>h1 {
+	flex: 3;
+}
+
+h1, h2, h3 {
+	text-align: center;
+	align-self: center;
+	color: #FFF;
+	font-family: "Calibri", sans-serif;
+	margin: 0;
+}
+
+.row>h3, .thin-row>h3 {
+	flex: 4;
+}
+
+.binding-row>.thin-row {
+	margin: 0 0 1%;
+}
+
+button {
+	position: relative;
+}
+
+.dropdown {
+	display: none;
+	position: absolute;
+	right: 0;
+	background-color: #666;
+	min-width: 160px;
+	z-index: 1;
+}
+
+button:focus>.dropdown {
+	display: flex;
+	flex-direction: column;
+}
+
+.dropdown>button {
+	border: none;
+	background-color: #666;
+	border-radius: 0;
+}
+
+.dropdown>button:hover {
+	background-color: #222;
+}
+
+.logo-row {
+	flex: 1;
+
+	display: flex;
+	aspect-ratio: 160/26;
+	align-items: center;
+	max-width: 100%;
+	margin: 2%;
+}
+
+.logo-row>* {
+	flex: 1;
+	width: 0;
+}
+
+.logo {
+	flex: 4;
+}
+
+.paragraphs>p {
+	text-align: left;
+	font-size: 125%;
+	margin: 2% 0;
+}
+
+a {
+	color: #29D;
+}

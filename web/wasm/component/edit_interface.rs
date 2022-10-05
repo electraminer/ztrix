@@ -180,7 +180,7 @@ impl Component for EditInterface {
 	      		<div class="row">
 	      			<input type="text"
 	      				ref={self.input.clone()}
-	      				placeholder="http://152.7.71.114/game/..."/>
+	      				placeholder="https://ztrix-game.web.app/game/..."/>
 	      		</div>
 	      		<div class="row">
 	      			<ButtonComponent
@@ -311,9 +311,9 @@ impl Component for EditInterface {
 	    			let prefix1 = vec![
 	    				"https://", "http://", ""];
 	    			let prefix2 = vec![
+	    				"ztrix-game.web.app/",
 	    				"152.7.71.114/",
-	    				"localhost/",
-	    				"ztrix/", "/", ""];
+	    				"localhost/", "/", ""];
 	    			let prefix3 = vec![
 	    				"game/", "play/", "edit/", ""];
 	    			let mut code = None;
@@ -344,7 +344,7 @@ impl Component for EditInterface {
 						.cast::<HtmlInputElement>()
 		    			.expect("element should be an input");
 		    		let value = format!{
-		    			"http://152.7.71.114/game/{}", self.game};
+		    			"https://ztrix-game.web.app/game/{}", self.game};
 		    		input.set_value(&value);
 					input.select();
 					input.set_selection_range(0, 99999)
