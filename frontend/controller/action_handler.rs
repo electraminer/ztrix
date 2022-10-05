@@ -238,6 +238,7 @@ impl ActionHandler {
 			if self.held.contains(&PlayButton::DownSlow) {
 				vec.push(MetaAction::Action(
     				Action::MoveDown));
+				self.moved = true;
 			}
 			max_iter -= 1;
 			if max_iter == 0 {
@@ -248,6 +249,7 @@ impl ActionHandler {
 		if self.held.contains(&PlayButton::DownFast) {
 			vec.append(&mut vec![MetaAction::Action(
 	   			Action::MoveDown); 20]);
+			self.moved = true;
 		}
 
 		let mut max_iter = 10;
@@ -255,10 +257,16 @@ impl ActionHandler {
 			self.das_timer += handling_settings.arr_duration;
 			match self.das() {
 				DasDirection::None => (),
-				DasDirection::Left => vec.push(MetaAction::Action(
-    				Action::MoveLeft)),
-				DasDirection::Right => vec.push(MetaAction::Action(
-    				Action::MoveRight)),
+				DasDirection::Left => {
+					vec.push(MetaAction::Action(
+    					Action::MoveLeft));
+					self.moved = true;
+				}
+				DasDirection::Right => {
+					vec.push(MetaAction::Action(
+    					Action::MoveRight));
+					self.moved = true;
+				}
 			}
 			max_iter -= 1;
 			if max_iter == 0 {
