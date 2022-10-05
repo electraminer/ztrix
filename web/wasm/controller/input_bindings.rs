@@ -28,41 +28,59 @@ impl Default for KeyBindings {
 	fn default() -> Self {
 		Self::new(
 			HashMap::from([
-				("KeyK", PlayButton::Left),
-		    	("Semicolon", PlayButton::Right),
-		        ("KeyL", PlayButton::DownSlow),
+				("ArrowLeft", PlayButton::Left),
+		    	("ArrowRight", PlayButton::Right),
+
+		        ("ArrowDown", PlayButton::DownSlow),
 		        ("ShiftLeft", PlayButton::DownFast),
-		        ("KeyO", PlayButton::Clockwise),
-		        ("KeyA", PlayButton::Anticlockwise),
-		        ("KeyW", PlayButton::Flip),
+
+		        ("ArrowUp", PlayButton::Clockwise),
+		        ("KeyZ", PlayButton::Anticlockwise),
+		        ("KeyX", PlayButton::Flip),
+
 		        ("Space", PlayButton::Place),
-		        ("KeyD", PlayButton::Hold),
-		        ("KeyF", PlayButton::Zone),
-		        ("KeyZ", PlayButton::Undo),
-		        ("KeyR", PlayButton::Redo),
+		        ("KeyC", PlayButton::Hold),
+
+		        ("KeyA", PlayButton::Zone),
+		        ("KeyV", PlayButton::Zone),
+
+		        ("KeyT", PlayButton::Undo),
+		        ("KeyF", PlayButton::Undo),
+
+		        ("KeyY", PlayButton::Redo),
+		        ("KeyG", PlayButton::Redo),
+
+		        ("KeyR", PlayButton::RerollCurrent),
 		        ("Backquote", PlayButton::RerollCurrent),
 		        ("Digit1", PlayButton::RerollNext(1)),
 		        ("Digit2", PlayButton::RerollNext(2)),
 		        ("Digit3", PlayButton::RerollNext(3)),
 		        ("Digit4", PlayButton::RerollNext(4)),
-		        ("KeyS", PlayButton::Restart),
-				("KeyE", PlayButton::Edit),
+
+		        ("S", PlayButton::Restart),
+		        ("F4", PlayButton::Restart),
+
+				("Escape", PlayButton::Edit),
 		    ].map(|(s, c)| (s.to_string(), c))),
 			HashMap::from([
 				("KeyH", EditButton::SetHold),
+
 				("Backquote", EditButton::SetCurrent),
 				("Digit1", EditButton::SetNext(1)),
 				("Digit2", EditButton::SetNext(2)),
 				("Digit3", EditButton::SetNext(3)),
 				("Digit4", EditButton::SetNext(4)),
+
 				("KeyB", EditButton::SetBagPos),
-				("KeyF", EditButton::ToggleZone),
-				("KeyD", EditButton::ToggleHoldUsed),
-				("KeyE", EditButton::Play),
-				("KeyV", EditButton::Import),
-				("KeyC", EditButton::Export),
-				("KeyZ", EditButton::Revert),
-				("KeyS", EditButton::EraseAll),
+
+				("KeyA", EditButton::ToggleZone),
+				("KeyV", EditButton::ToggleZone),
+
+				("KeyC", EditButton::ToggleHoldUsed),
+
+				("KeyS", EditButton::Revert),
+
+				("KeyEscape", EditButton::Play),
 			].map(|(s, c)| (s.to_string(), c))))
 	}
 }
@@ -96,16 +114,16 @@ impl Default for ButtonBindings {
 					PlayButton::Undo,
 					PlayButton::Place,
 					PlayButton::Place,
-					PlayButton::Flip],
+					PlayButton::Zone],
 				vec![
-					PlayButton::Left,
-					PlayButton::Right,
 					PlayButton::Anticlockwise,
-					PlayButton::Clockwise],
+					PlayButton::Clockwise,
+					PlayButton::Left,
+					PlayButton::Right],
 				vec![
+					PlayButton::Flip,
+					PlayButton::Hold,
 					PlayButton::DownFast,
-					PlayButton::DownSlow,
-					PlayButton::Zone,
-					PlayButton::Hold]])
+					PlayButton::DownSlow]])
 	}
 }

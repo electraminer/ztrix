@@ -21,6 +21,11 @@ pub fn button_component(props: &Props) -> Html {
 			*pressed.borrow_mut() = true;
 			onbutton.emit(ButtonEvent::Press(()));
 		});
+	let onpress_clone = onpress.clone();
+	let onmousedown = Callback::from(move |e: MouseEvent|
+		if e.button() == 0 {
+			onpress_clone.emit(());
+		});
 
 	let pressed = state_pressed.clone();
 	let onbutton = props.onbutton.clone();
@@ -29,11 +34,15 @@ pub fn button_component(props: &Props) -> Html {
 			*pressed.borrow_mut() = false;
 			onbutton.emit(ButtonEvent::Release(()));
 		});
+	let onrelease_clone = onrelease.clone();
+	let onmouseup = Callback::from(move |e: MouseEvent|
+		if e.button() == 0 {
+			onrelease_clone.emit(());
+		});
 
     html! {
         <button
-        	onmousedown={onpress.reform(|_| ())}
-        	onmouseup={onrelease.reform(|_| ())}
+        	{onmousedown} {onmouseup}
         	onmouseleave={onrelease.reform(|_| ())}
         	ontouchstart={onpress.reform(|e: TouchEvent|
     			e.prevent_default())}

@@ -32,6 +32,14 @@ html, body, #content {
 	max-width: 100%;
 }
 
+.thin-row {
+	flex: 1;
+
+	display: flex;
+	aspect-ratio: 160/20;
+	max-width: 100%;
+}
+
 .game {
 	flex: 8;
 	max-width: 100%;
@@ -72,8 +80,10 @@ html, body, #content {
 	position: relative;
 }
 
-.top-left, .top-right {
-	height: 20%;
+.middle-left, .middle-right {
+	width: 100%;
+	top: 20%;
+	position: absolute;
 }
 
 p {
@@ -140,10 +150,22 @@ button>img {
 	width: 100%;
 	bottom: 0%;
 	position: absolute;
+}
+
+.bottom-left>button, .bottom-right>button {
+	width: 80%;
+	aspect-ratio: 4/3;
+	margin: 5% 10% 0;
+}
+
+.top-left, .top-right {
+	width: 100%;
+	top: 0%;
+	position: absolute;
 
 }
 
-.bottom-left>button {
+.top-left>button, .top-right>button {
 	width: 80%;
 	aspect-ratio: 4/3;
 }
@@ -154,6 +176,10 @@ button>img {
 	width: 0;
 }
 
+.thin-row>* {
+	flex: 1;
+}
+
 .scrollable {
 	flex: 8;
 	max-width: 100%;
@@ -162,14 +188,12 @@ button>img {
 	background-color: #222;
 
 	padding: 0% 1%;
-	/*height: 100%;
-	padding: 0% 1%;
-	aspect-ratio: 9/16;*/
 
-	overflow-y: scroll;
+	overflow-y: auto;
 }
 
-.scrollable>.row {
+.scrollable>* {
+	margin: 1% 0;
 	align-items: center;
 }
 
@@ -181,12 +205,12 @@ button>img {
 .add-binding, .remove-binding {
 	width: 100%;
 	height: 100%;
+	margin: 0 0.5%;
 }
 
 .add-binding>button, .remove-binding>button {
 	width: 100%;
-	height: 90%;
-	margin: 0% 5%;
+	height: 100%;
 }
 
 .add-binding>button {
@@ -213,14 +237,93 @@ button>img {
 	background-color: #C51;
 }
 
-.row>h1 {
+.config-row {
+	flex: 1;
+
+	display: flex;
+	aspect-ratio: 5/1;
+	align-items: center;
+	max-width: 100%;
+}
+
+.config-row>* {
+	flex: 1;
+	width: 0;
+}
+
+.config-row>h1 {
 	flex: 3;
 }
 
-h1, h2 {
+h1, h2, h3 {
 	text-align: center;
 	align-self: center;
 	color: #FFF;
 	font-family: "Calibri", sans-serif;
 	margin: 0;
+}
+
+.row>h3, .thin-row>h3 {
+	flex: 4;
+}
+
+.binding-row>.thin-row {
+	margin: 0 0 1%;
+}
+
+button {
+	position: relative;
+}
+
+.dropdown {
+	display: none;
+	position: absolute;
+	right: 0;
+	background-color: #666;
+	min-width: 160px;
+	z-index: 1;
+}
+
+button:focus>.dropdown {
+	display: flex;
+	flex-direction: column;
+}
+
+.dropdown>button {
+	border: none;
+	background-color: #666;
+	border-radius: 0;
+}
+
+.dropdown>button:hover {
+	background-color: #222;
+}
+
+.logo-row {
+	flex: 1;
+
+	display: flex;
+	aspect-ratio: 160/26;
+	align-items: center;
+	max-width: 100%;
+	margin: 2%;
+}
+
+.logo-row>* {
+	flex: 1;
+	width: 0;
+}
+
+.logo {
+	flex: 4;
+}
+
+.paragraphs>p {
+	text-align: left;
+	font-size: 125%;
+	margin: 2% 0;
+}
+
+a {
+	color: #29D;
 }

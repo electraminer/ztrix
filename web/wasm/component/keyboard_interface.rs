@@ -1,4 +1,5 @@
 
+use web_sys::HtmlElement;
 use std::collections::HashSet;
 
 
@@ -34,6 +35,7 @@ pub struct KeyboardInterface {
 	pressed: HashSet<String>,
 	focused: bool,
 	_interval: Interval,
+	node_ref: NodeRef,
 }
 
 impl Component for KeyboardInterface {
@@ -47,6 +49,7 @@ impl Component for KeyboardInterface {
         	focused: true,
         	_interval: Interval::new(16, move ||
 				link.send_message(Msg::Interval)),
+        	node_ref: NodeRef::default(),
         }
     }
 
@@ -79,8 +82,8 @@ impl Component for KeyboardInterface {
 
     fn view(&self, ctx: &Context<Self>) -> Html {
     	html! {
-        	<div class="interface"
-            	tabindex=1
+        	<div class="interface" tabindex=1
+        		ref={self.node_ref.clone()}
             	onkeydown={ctx.link().callback(
             		move |e: KeyboardEvent| Msg::Button(
             			ButtonEvent::Press(e.code())))}
@@ -94,5 +97,13 @@ impl Component for KeyboardInterface {
             	{for ctx.props().children.iter()}
             </div>
         }
+    }
+
+    fn rendered(&mut self, _ctx: &Context<Self>, first: bool) {
+    	if first {
+		    let elem = self.node_ref.cast::<HtmlElement>()
+		    	.expect("element should be an html element");
+		    elem.focus().expect("should be able to focus");
+    	}
     }
 }

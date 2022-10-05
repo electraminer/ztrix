@@ -1,4 +1,6 @@
 
+use yew_router::history::History;
+use yew_router::scope_ext::RouterScopeExt;
 use ztrix::game::MaybeActive;
 use component::keyboard_interface::KeyboardInterface;
 use component::button::ButtonComponent;
@@ -11,6 +13,7 @@ use controller::input_handler::TimeHandler;
 
 use controller::action_handler::MetaAction;
 use controller::action_handler::ActionHandler;
+use component::router::Route;
 
 use component::game::GameComponent;
 
@@ -93,13 +96,11 @@ impl PlayButton {
         }.and_then(|s| Some(s.to_string()))
     }
 
-    pub fn view_button(self, ctx: &Context<PlayInterface>)
-    		-> Html {
+    pub fn view_button(self,
+    	onbutton: Callback<ButtonEvent<()>>) -> Html {
     	html! {
 			<ButtonComponent
-				onbutton={ctx.link().callback(
-					move |u: ButtonEvent<()>| Msg::Button(
-						u.map(|_| self)))}>
+				onbutton={onbutton}>
 				{match self.get_icon_url() {
 					None => html! {
 						<p>{self.get_name()}</p>
@@ -119,6 +120,7 @@ pub enum Msg {
 	GameButton(ButtonEvent<GameButton>),
 	Button(ButtonEvent<PlayButton>),
 	Interval,
+	Config,
 }
 
 #[derive(Properties, PartialEq)]
@@ -155,6 +157,8 @@ impl Component for PlayInterface {
     fn view(&self, ctx: &Context<Self>) -> Html {
     	let user_prefs = UserPrefs::get();
      	let button_bindings = &user_prefs.button_bindings;
+     	let history = ctx.link().history()
+     		.expect("should be a history");
         html! {
         	<KeyboardInterface
         		onkey={ctx.link().callback(
@@ -162,12 +166,25 @@ impl Component for PlayInterface {
         				Msg::KeyButton(e))}>
             	<GameComponent
             		game={self.replay.get_game().clone()}
+	      			top_left={{ html! {
+						<ButtonComponent
+							onbutton={ctx.link().batch_callback(
+								move |e: ButtonEvent<()>| match e {
+									ButtonEvent::Release(_) =>
+										Some(Msg::Config),
+									_ => None,
+								})}>
+							<img src="/assets/config.png"
+								alt="Config"/>
+						</ButtonComponent>
+	      				}}}
 	      			top_right={{ html! {
 		        		<ButtonComponent
 		        			onbutton={ctx.link().callback(
 								|e: ButtonEvent<()>| Msg::Button(
 									e.map(|_| PlayButton::Edit)))}>
-		        			<p>{"Edit"}</p>
+							<img src="/assets/edit.png"
+			        			alt="Enter Edit Mode"/>
 		        		</ButtonComponent>
 	      				}}}
 		        	bottom_left={{html! { <>
@@ -175,14 +192,28 @@ impl Component for PlayInterface {
 		        		<p><strong>
 		        			{self.replay.get_frame()}
 		        		</strong></p>
+						<ButtonComponent
+							onbutton={Callback::from(
+								move |e: ButtonEvent<()>|
+									if let ButtonEvent::Press(_) = e {
+										history.push(Route::About);
+									})}>
+							<img src="/assets/help.png" alt="Back"/>
+						</ButtonComponent>
 		        		{button_bindings.left_buttons
 			            	.iter().map(|b| {
-		        				b.view_button(ctx)
+			            		let button = b.clone();
+		        				b.view_button(ctx.link().callback(
+									move |u: ButtonEvent<()>| Msg::Button(
+										u.map(|_| button))))
 		    				}).collect::<Html>()}
 		            </> }}}
 		        	bottom_right={button_bindings.right_buttons
 		            	.iter().map(|b| {
-	        				b.view_button(ctx)
+			            	let button = b.clone();
+	        				b.view_button(ctx.link().callback(
+								move |u: ButtonEvent<()>| Msg::Button(
+									u.map(|_| button))))
 	    				}).collect::<Html>()}
 	    			onbutton={ctx.link().callback(
 	        			|e: ButtonEvent<GameButton>|
@@ -191,7 +222,10 @@ impl Component for PlayInterface {
 	            	.iter().map(|v| html! {
 	            		<div class="row">
 	            			{for v.iter().map(|b| {
-	            				b.view_button(ctx)
+			            		let button = b.clone();
+	            				b.view_button(ctx.link().callback(
+									move |u: ButtonEvent<()>| Msg::Button(
+										u.map(|_| button))))
             				})}
 	     				</div>
 	            	})}
@@ -199,7 +233,7 @@ impl Component for PlayInterface {
         }
     }
 
-       fn update(&mut self, _ctx: &Context<Self>,
+       fn update(&mut self, ctx: &Context<Self>,
     		msg: Msg) -> bool {
     	let user_prefs = UserPrefs::get();
     	let key_bindings = &user_prefs.key_bindings;
@@ -232,6 +266,12 @@ impl Component for PlayInterface {
     		Msg::Interval => {
     			InputEvent::PassTime(
     				self.time_handler.update())
+    		}
+    		Msg::Config => {
+				let history = ctx.link().history()
+					.expect("should be a history");
+				history.push(Route::Config);
+				return false;
     		}
     	};
     	

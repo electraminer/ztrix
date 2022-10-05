@@ -14,7 +14,10 @@ pub mod play_interface;
 pub mod edit_interface;
 
 pub mod key_binding;
+pub mod button_binding;
 
-pub mod binding_interface;
+pub mod config_interface;
+
+pub mod about_interface;
 
 pub mod router;

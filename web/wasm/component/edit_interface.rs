@@ -173,7 +173,8 @@ impl Component for EditInterface {
 		        			onbutton={ctx.link().callback(
 								|e: ButtonEvent<()>| Msg::Button(
 									e.map(|_| EditButton::Play)))}>
-		        			<p>{"Play"}</p>
+		        			<img src="/assets/play.png"
+		        				alt="Enter Play Mode"/>
 		        		</ButtonComponent>
 	      			</> }}}/>
 	      		<div class="row">

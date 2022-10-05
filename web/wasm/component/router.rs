@@ -1,4 +1,5 @@
-use component::binding_interface::BindingInterface;
+use component::about_interface::AboutInterface;
+use component::config_interface::ConfigInterface;
 use component::play_interface::PlayInterface;
 use ztrix::game::Game;
 use yew::prelude::*;
@@ -22,10 +23,16 @@ pub enum Route {
     Edit,
     #[at("/edit/:game")]
     EditGame { game: Game },
+    #[at("/config")]
+    Config,
     #[at("/settings")]
     Settings,
     #[at("/controls")]
     Controls,
+    #[at("/about")]
+    About,
+    #[at("/help")]
+    Help,
 }
 
 fn switch(route: &Route) -> Html {
@@ -45,11 +52,20 @@ fn switch(route: &Route) -> Html {
         Route::EditGame { game } => html! {
             <EditInterface game={game.clone()}/>
         },
+        Route::Config => html! {
+            <ConfigInterface/>
+        },
         Route::Settings => html! {
-            <BindingInterface/>
+            <ConfigInterface/>
         },
         Route::Controls => html! {
-            <BindingInterface/>
+            <ConfigInterface/>
+        },
+        Route::About => html! {
+            <AboutInterface/>
+        },
+        Route::Help => html! {
+            <AboutInterface/>
         },
     }
 }

@@ -18,12 +18,12 @@ pub fn key_binding(props: &Props) -> Html {
 	let bound = props.bound.clone();
 	let onunbind = props.onunbind.clone();
 	html! {
-		<div class="row">
+		<div class="thin-row">
 			<div class="binding-name">
 				<p><strong>{props.name.clone()}</strong></p>
 			</div>
 			<div class="binding-list">
-				{for props.bound.iter().map(|c| html! {
+				{for bound.iter().map(|c| html! {
 					<p>{c}</p>
 				})}
 			</div>
