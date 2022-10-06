@@ -96,7 +96,7 @@ impl ActionHandler {
 			DasDirection::None
 		} else if left && !right {
 			DasDirection::Left
-		} else if left && !right {
+		} else if !left && right {
 			DasDirection::Right
 		} else {
 			self.das_priority
@@ -164,7 +164,7 @@ impl ActionHandler {
 	    		Action::ToggleZone)],
 	    	PlayButton::Undo => {
 	    		self.frozen = true;
-	    		if self.moved || game.over {
+	    		if self.moved {
 	    			vec![MetaAction::Revert]
 	    		} else {
 	    			vec![MetaAction::Undo]
