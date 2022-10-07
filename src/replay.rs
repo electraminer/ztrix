@@ -1,3 +1,4 @@
+use crate::game::game::Clear;
 use std::collections::HashMap;
 use rand::RngCore;
 
@@ -91,24 +92,28 @@ impl Replay {
 			.clone();
 	}
 
-	pub fn redo(&mut self) {
+	pub fn redo(&mut self) -> Vec<Clear> {
 		let game = self.game_history.last()
 			.expect("there should be a previous state")
 			.clone();
+		let mut clears = Vec::new();
 		if let Some(choice) = self.choices.get(&game) {
 			self.current.clear();
 			self.game = game;
 			for action in choice.iter() {
-				self.game.update(*action, &mut self.info);
+				clears.append(&mut
+					self.game.update(*action, &mut self.info));
 			}
 			self.game_history.push(self.game.clone());
 			self.info_history.push(self.info.index);
 		}
+		clears
 	}
 
-	pub fn update(&mut self, action: Action) {
+	pub fn update(&mut self, action: Action)
+		-> Vec<Clear> {
 		self.current.push(action);
-		self.game.update(action, &mut self.info);
+		let clears = self.game.update(action, &mut self.info);
 		let index = self.info_history.last()
 			.expect("there should be a previous state")
 			.clone();
@@ -122,6 +127,7 @@ impl Replay {
 			self.game_history.push(self.game.clone());
 			self.info_history.push(self.info.index);
 		}
+		clears
 	}
 
 	pub fn reroll_forward(&mut self, forward: usize) {

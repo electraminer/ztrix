@@ -1,4 +1,5 @@
 
+use ztrix::game::game::Clear;
 use yew_router::history::History;
 use yew_router::scope_ext::RouterScopeExt;
 use ztrix::game::MaybeActive;
@@ -132,6 +133,7 @@ pub struct Props {
 
 pub struct PlayInterface {
 	replay: Replay,
+	last_clear: Option<Clear>,
 	button_handler: ButtonHandler<PlayButton>,
 	time_handler: TimeHandler,
 	action_handler: ActionHandler,
@@ -146,6 +148,7 @@ impl Component for PlayInterface {
 		let link = ctx.link().clone();
         Self {
         	replay: Replay::new(ctx.props().game.clone()),
+        	last_clear: None,
 			button_handler: ButtonHandler::new(),
 			time_handler: TimeHandler::new(),
         	action_handler: ActionHandler::new(),
@@ -275,8 +278,12 @@ impl Component for PlayInterface {
 			.update(&self.replay, event);
 		
     	meta_actions.into_iter().map(|e| match e {
-    			MetaAction::Action(action) =>
-    				self.replay.update(action),
+    			MetaAction::Action(action) => {
+    				let mut clears = self.replay.update(action);
+    				if let Some(clear) = clears.pop() {
+    					self.last_clear = Some(clear);
+    				}
+    			}
     			MetaAction::Revert => self.replay.revert(),
     			MetaAction::Undo =>
 	    			if self.replay.get_frame() > 0 {
@@ -284,7 +291,12 @@ impl Component for PlayInterface {
 	    			} else {
 	    				self.replay.revert();
 	    			}
-    			MetaAction::Redo => self.replay.redo(),
+    			MetaAction::Redo => {
+    				let mut clears = self.replay.redo();
+    				if let Some(clear) = clears.pop() {
+    					self.last_clear = Some(clear);
+    				}
+    			}
     			MetaAction::Reroll(back) =>
     				self.replay.reroll_backward(back),
     			MetaAction::Restart => {

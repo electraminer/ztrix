@@ -28,6 +28,11 @@ pub enum Action {
 	ToggleZone,
 }
 
+pub enum Clear {
+	LineClear(usize),
+	ZoneClear(usize),
+}
+
 #[derive(Clone, Eq, Hash, PartialEq)]
 pub struct Game {
 	pub piece: MaybeActive,
@@ -78,29 +83,29 @@ impl Game {
 		}
 	}
 
-	fn hold(&mut self, info: &mut Info) -> bool {
+	fn hold(&mut self, info: &mut Info) {
 		if self.has_held {
-			return false;
+			return;
 		}
 		self.has_held = true;
-		let mut used_rng = false;
 		let swap = self.hold.unwrap_or_else(|| {
-			used_rng = true;
 			self.queue.next(info)
 		});
 		self.hold = Some(self.get_current());
 		self.piece = MaybeActive::Inactive(swap);
-		used_rng
 	}
 
 	fn spawn(&mut self, irs: Rotation, ihs: bool,
-			info: &mut Info) -> bool {
-		let used_rng = ihs && self.hold(info);
+			info: &mut Info) -> Vec<Clear> {
+		if !ihs {
+			self.hold(info);
+		}
+		let mut clears = Vec::new();
 		if let MaybeActive::Inactive(current) = self.piece {
 			match ActivePiece::spawn(
 				&self.board, current, irs).or_else(|| {
 					if self.in_zone {
-						self.toggle_in_zone();
+						clears.append(&mut self.toggle_in_zone())
 					}
 					ActivePiece::spawn(
 						&self.board, current, irs)
@@ -109,30 +114,34 @@ impl Game {
 				None => self.over = true,
 			}
 		}
-		used_rng
+		clears
 	}
 
 	fn place(&mut self, irs: Rotation, ihs: bool,
-			info: &mut Info) -> bool {
+			info: &mut Info) -> Vec<Clear> {
 		if let MaybeActive::Inactive(_) = self.piece {
-			return false;
+			return vec![];
 		}
 		let current = self.queue.next(info);
 		let piece = MaybeActive::Inactive(current);
 		let active = match std::mem::replace(
 				&mut self.piece, piece) {
 			MaybeActive::Active(a) => a,
-			MaybeActive::Inactive(_) => return false,
+			MaybeActive::Inactive(_) => return vec![],
 		};
 		let height = active.get_ghost(&self.board)
 			.get_mino_positions()
 			.iter().map(|p| p.y).min().unwrap_or(0);
 		active.place(&mut self.board);
-		if self.in_zone {
-			self.board.clear_lines_zone();
+		let cleared = if self.in_zone {
+			self.board.clear_lines_zone()
 		} else {
-			self.board.clear_lines();
-		}
+			self.board.clear_lines()
+		};
+		let mut clears = match cleared {
+			0 => vec![],
+			c => vec![Clear::LineClear(c)],
+		};
 		self.has_held = false;
 		if ihs {
 			self.hold(info);
@@ -141,43 +150,45 @@ impl Game {
 			&self.board, self.get_current(), irs), None }
 			|| height >= 20 {
 			if self.in_zone {
-				self.toggle_in_zone();
+				clears.append(&mut self.toggle_in_zone())
 			} else {
 				self.over = true;
 			}
 		}
-		true
+		clears
 	}
 
-	fn toggle_in_zone(&mut self) {
-		if self.in_zone {
-			self.board.clear_lines();
-		}
+	fn toggle_in_zone(&mut self) -> Vec<Clear> {
 		self.in_zone = !self.in_zone;
+		if !self.in_zone {
+			vec![Clear::ZoneClear(
+				self.board.clear_lines())]
+		} else {
+			vec![]
+		}
 	}
 
 	pub fn update(&mut self, action: Action,
-			info: &mut Info) -> bool {
+			info: &mut Info) -> Vec<Clear> {
 		if self.over {
-			return false;
+			return vec![];
 		}
 		match action {
 			Action::MoveLeft => {
-				self.move_piece(Vector::ONE_LEFT); false},
+				self.move_piece(Vector::ONE_LEFT); vec![]},
 			Action::MoveRight => {
-				self.move_piece(Vector::ONE_RIGHT); false}
+				self.move_piece(Vector::ONE_RIGHT); vec![]}
 			Action::MoveDown => {
-				self.move_piece(Vector::ONE_DOWN); false},
+				self.move_piece(Vector::ONE_DOWN); vec![]},
 			Action::Rotate(rot) => {
-				self.rotate_piece(rot); false}
+				self.rotate_piece(rot); vec![]}
 			Action::SpawnPiece(irs, ihs) =>
 				self.spawn(irs, ihs, info),
 			Action::PlacePiece(irs, ihs) =>
 				self.place(irs, ihs, info),
 			Action::HoldPiece(irs) =>
 				self.spawn(irs, true, info),
-			Action::ToggleZone => {
-				self.toggle_in_zone(); false},
+			Action::ToggleZone => self.toggle_in_zone(),
 		}
 	}
 }
