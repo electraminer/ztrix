@@ -388,6 +388,7 @@ button.active>.copied {
 
 .in-zone>.zone-lines {
 	fill: #111;
+	/*top: 0%;*/
 	opacity: 1;
 	transition: opacity 0s;
 }

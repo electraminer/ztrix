@@ -1,4 +1,5 @@
 
+use ztrix::game::game::Clear;
 use controller::input_handler::ButtonEvent;
 use component::piece_box::PieceBoxComponent;
 use component::queue::QueueComponent;
@@ -22,6 +23,8 @@ pub struct Props {
 	pub game: Game,
 	#[prop_or_default]
 	pub frame: usize,
+	#[prop_or_default]
+	pub last_clear: Option<Clear>,
 	#[prop_or_default]
 	pub top_left: Html,
 	#[prop_or_default]
@@ -68,18 +71,64 @@ pub fn game_component(props: &Props) -> Html {
 		     		piece={props.game.piece.clone()}
 		     		onmouse={props.onboardmouse.clone()}/>
 		     		<svg class="zone-lines"
-		     			viewBox="0 0 100 20">
-						<text x="50%" y="50%">{{
-							let lines = props.game.board.matrix
+		     			viewBox="0 0 100 20"
+		     			style={{
+		     				let h = if props.game.in_zone {
+								let lines = props.game.board.matrix
 								.iter()
 								.filter(|r|
 									**r == [Some(Mino::Gray); 10])
 								.count();
-							match lines {
-								0..=10 => "".to_string(),
-								l => format!{"{} LINES", l},
+								lines as f64 / 2.0
+							} else {
+								10.0
+							};
+		     				format!{"bottom: {}%;",
+								(h - 1.0) / (26.0 - 2.0) * 100.0}
+		     				}}>
+						<text x="50%" y="60%">{
+							if props.game.in_zone {
+								let lines = props.game.board.matrix
+									.iter()
+									.filter(|r|
+										**r == [Some(Mino::Gray); 10])
+									.count();
+								match lines {
+									0 | 1 => "".to_string(),
+									l => format!{"{} LINES", l},
+								}
+							} else {
+								match props.last_clear {
+									Some(Clear::ZoneClear(l)) =>
+										match l {
+											5 => "PENTRIX",
+											6 => "HEXTRIX",
+											7 => "SEPTRIX",
+											8 => "OCTORIX",
+											9 => "PENDECATRIX",
+											10 => "DECATRIX",
+											11 => "UNDECATRIX",
+											12 => "DODECATRIX",
+											13 => "TRIDECATRIX",
+											14 => "QUADECATRIX",
+											15 => "DECAPENTRIX",
+											16 => "DECAHEXTRIX",
+											17 => "DECASEPTRIX",
+											18 => "PERFECTRIX",
+											19 => "PENULTIMARIX",
+											20 => "ULTIMATRIX",
+											21 => "KIRBTRIX",
+											22 => "IMPOSSITRIX",
+											23 => "INFINITRIX",
+											24 => "ELECTRIX",
+											25 => "ELECTRIX+",
+											26 => "ELECTRIX++",
+											_ => ""
+										},
+									_ => ""
+								}.to_string()
 							}
-						}}</text>
+						}</text>
 					</svg>
 			</div>
         	<div class="side-column">

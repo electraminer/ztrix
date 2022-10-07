@@ -28,6 +28,7 @@ pub enum Action {
 	ToggleZone,
 }
 
+#[derive(PartialEq, Clone)]
 pub enum Clear {
 	LineClear(usize),
 	ZoneClear(usize),

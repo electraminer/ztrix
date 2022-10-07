@@ -168,6 +168,7 @@ impl Component for PlayInterface {
             	<GameComponent
             		game={self.replay.get_game().clone()}
             		frame={self.replay.get_frame()}
+            		last_clear={self.last_clear.clone()}
 	      			top_left={{ html! {
 						<ButtonComponent
 							onbutton={ctx.link().batch_callback(
