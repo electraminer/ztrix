@@ -379,5 +379,5 @@ button.active>.copied {
 	position: absolute;
 	right: 5%;
 	top: 5%;
-	font-size: 150%;
+	width: 30%;
 }

@@ -71,9 +71,9 @@ pub fn piece_box_component(props: &Props) -> Html {
 			</canvas>
 			{if props.speculative {
 				html! {
-					<p class="speculative"><strong>
-						{"?"}
-					</strong></p>
+					<img class="speculative"
+						src="/assets/speculation.png"
+						alt="🔁"/>
 				}
 			} else {
 				html! { }
