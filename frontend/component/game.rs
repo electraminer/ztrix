@@ -21,6 +21,8 @@ pub struct Props {
 	#[prop_or_default]
 	pub game: Game,
 	#[prop_or_default]
+	pub frame: usize,
+	#[prop_or_default]
 	pub top_left: Html,
 	#[prop_or_default]
 	pub bottom_left: Html,
@@ -74,15 +76,8 @@ pub fn game_component(props: &Props) -> Html {
 									**r == [Some(Mino::Gray); 10])
 								.count();
 							match lines {
-								0..=11 => "".to_string(),
-								12..=19 => format!{
-									"{} LINES", lines},
-								20 => "ULTIMATRIX".to_string(),
-								21 => "KIRBTRIX".to_string(),
-								22 => "IMPOSSITRIX".to_string(),
-								23 => "INFINITRIX".to_string(),
-								24 => "ELECTRIX".to_string(),
-								_ => "ELECTRIX".to_string(),
+								0..=10 => "".to_string(),
+								l => format!{"{} LINES", l},
 							}
 						}}</text>
 					</svg>
@@ -95,6 +90,7 @@ pub fn game_component(props: &Props) -> Html {
 	        		<p><strong>{"NEXT"}</strong></p>
 	        		<QueueComponent
 	        			queue={props.game.queue.clone()}
+	        			num_speculative={props.frame}
 						onbutton={props.onbutton.reform(
 							|e: ButtonEvent<QueueButton>| e.map(|b|
 								GameButton::Queue(b)))}/>

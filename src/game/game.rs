@@ -97,7 +97,7 @@ impl Game {
 
 	fn spawn(&mut self, irs: Rotation, ihs: bool,
 			info: &mut Info) -> Vec<Clear> {
-		if !ihs {
+		if ihs {
 			self.hold(info);
 		}
 		let mut clears = Vec::new();

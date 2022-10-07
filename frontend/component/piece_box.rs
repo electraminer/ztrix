@@ -14,6 +14,8 @@ pub struct Props {
 	pub piece: Option<PieceType>,
 	#[prop_or_default]
 	pub grayed: bool,
+	#[prop_or_default]
+	pub speculative: bool,
 
 	#[prop_or_default]
 	pub onbutton: Callback<ButtonEvent<()>>
@@ -43,7 +45,7 @@ pub fn piece_box_component(props: &Props) -> Html {
 					PieceType::T => "#819",
 				}));
     		if grayed {
-				context.set_global_alpha(0.3);
+				context.set_global_alpha(0.5);
     		}
     		// position at which to put piece origin
     		let (x_offset, y_offset) = match piece {
@@ -67,6 +69,15 @@ pub fn piece_box_component(props: &Props) -> Html {
 			<canvas class="piece-box" width=0 height=0
 				ref={canvas.clone()}>
 			</canvas>
+			{if props.speculative {
+				html! {
+					<img class="speculative"
+						src="/assets/speculation.png"
+						alt="🔁"/>
+				}
+			} else {
+				html! { }
+			}}
 		</ButtonComponent>
 	}
 }
