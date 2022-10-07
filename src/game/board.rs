@@ -25,7 +25,8 @@ impl Board {
 		((pos.x as usize) < 10) && ((pos.y as usize) < 26)
 	}
 
-	pub fn clear_lines(&mut self) {
+	pub fn clear_lines(&mut self) -> usize {
+		let mut cleared = 0;
 		for y in (0..26).rev() {
 			if self.matrix[y].iter().all(|m|
 					matches!(m, Some(_))) {
@@ -33,11 +34,14 @@ impl Board {
 					self.matrix[i] = self.matrix[i+1];
 				}
 				self.matrix[26-1] = [None; 10];
+				cleared += 1;
 			}
 		}
+		cleared
 	}
 
-	pub fn clear_lines_zone(&mut self) {
+	pub fn clear_lines_zone(&mut self) -> usize {
+		let mut cleared = 0;
 		for y in 0..26 {
 			if self.matrix[y].iter().all(|m|
 					matches!(m, Some(_))) {
@@ -45,8 +49,10 @@ impl Board {
 					self.matrix[i+1] = self.matrix[i];
 				}
 				self.matrix[0] = [Some(Mino::Gray); 10];
+				cleared += 1;
 			}
 		}
+		cleared
 	}
 }
 
