@@ -164,6 +164,7 @@ impl Component for PlayInterface {
         				Msg::KeyButton(e))}>
             	<GameComponent
             		game={self.replay.get_game().clone()}
+            		frame={self.replay.get_frame()}
 	      			top_left={{ html! {
 						<ButtonComponent
 							onbutton={ctx.link().batch_callback(

@@ -16,6 +16,8 @@ pub enum QueueButton {
 #[derive(Properties, PartialEq)]
 pub struct Props {
 	pub queue: Queue,
+	#[prop_or_default]
+	pub num_speculative: usize,
 
 	#[prop_or_default]
 	pub onbutton: Callback<ButtonEvent<QueueButton>>
@@ -51,6 +53,8 @@ pub fn queue(props: &Props) -> Html {
 					{bag_indicator(i)}
 					<PieceBoxComponent
 						piece={Some(props.queue.get(i))}
+						speculative=
+							{props.num_speculative+i >= 4}
 						onbutton={onbutton(
 							QueueButton::NextBox(i))}/>
 				</> }
