@@ -20,6 +20,8 @@ pub struct Props {
 	#[prop_or_default]
 	pub game: Game,
 	#[prop_or_default]
+	pub frame: usize,
+	#[prop_or_default]
 	pub top_left: Html,
 	#[prop_or_default]
 	pub bottom_left: Html,
@@ -73,6 +75,7 @@ pub fn game_component(props: &Props) -> Html {
 	        		<p><strong>{"NEXT"}</strong></p>
 	        		<QueueComponent
 	        			queue={props.game.queue.clone()}
+	        			num_speculative={props.frame}
 						onbutton={props.onbutton.reform(
 							|e: ButtonEvent<QueueButton>| e.map(|b|
 								GameButton::Queue(b)))}/>

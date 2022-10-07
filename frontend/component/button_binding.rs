@@ -1,4 +1,5 @@
 
+use web_sys::HtmlElement;
 use controller::input_handler::ButtonEvent;
 use component::config_interface::BINDABLE_PLAY;
 use component::play_interface::PlayButton;
@@ -18,13 +19,19 @@ pub struct Props {
 #[function_component(ButtonBinding)]
 pub fn button_binding(props: &Props) -> Html {
 	let onchange = props.onchange.clone();
+	let node_ref = use_node_ref();
 	let bound = props.bound.clone();
 	html! {
 		<div class="binding-row">
 			<div class="thin-row">
 				<h3>{props.name.clone()}</h3>
 				<div class="add-binding">
-					<button>
+					<button ref={node_ref.clone()}
+						onclick={Callback::from(move |_| {
+							let elem = node_ref.cast::<HtmlElement>()
+								.expect("should be an html element");
+							elem.focus().expect("should be able to focus");
+						})}>
 						<img src="/assets/add.png" alt="+"/>
 						<div class="dropdown">
 							{for BINDABLE_PLAY.iter().map(|b| {
