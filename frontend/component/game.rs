@@ -7,6 +7,7 @@ use component::board::BoardComponent;
 use component::board::BoardMouseEvent;
 
 use ztrix::game::Game;
+use ztrix::game::Mino;
 
 use yew::prelude::*;
 
@@ -64,6 +65,27 @@ pub fn game_component(props: &Props) -> Html {
             		board={props.game.board.clone()}
 		     		piece={props.game.piece.clone()}
 		     		onmouse={props.onboardmouse.clone()}/>
+		     		<svg class="zone-lines"
+		     			viewBox="0 0 100 20">
+						<text x="50%" y="50%">{{
+							let lines = props.game.board.matrix
+								.iter()
+								.filter(|r|
+									**r == [Some(Mino::Gray); 10])
+								.count();
+							match lines {
+								0..=11 => "".to_string(),
+								12..=19 => format!{
+									"{} LINES", lines},
+								20 => "ULTIMATRIX".to_string(),
+								21 => "KIRBTRIX".to_string(),
+								22 => "IMPOSSITRIX".to_string(),
+								23 => "INFINITRIX".to_string(),
+								24 => "ELECTRIX".to_string(),
+								_ => "ELECTRIX".to_string(),
+							}
+						}}</text>
+					</svg>
 			</div>
         	<div class="side-column">
         		<div class="top-right">
