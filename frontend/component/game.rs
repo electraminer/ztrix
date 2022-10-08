@@ -82,7 +82,7 @@ pub fn game_component(props: &Props) -> Html {
 								lines as f64 / 2.0
 							} else {
 								10.0
-							};
+							}.clamp(1.0, 19.0);
 		     				format!{"bottom: {}%;",
 								(h - 1.0) / (26.0 - 2.0) * 100.0}
 		     				}}>
