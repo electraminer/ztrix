@@ -68,19 +68,23 @@ pub fn queue(props: &Props) -> Html {
 				</> }
 			)}
 			{bag_indicator(fill.clamp(0, length))}
-			<ButtonComponent onbutton={onbutton(
-				QueueButton::NextText)}>
-        		<p><strong>{"NEXT"}</strong></p>
-        		<p class="next-text">{
-        			format!{"{}", upcoming}}
-        			</p>
-        	</ButtonComponent>
-			<ButtonComponent onbutton={onbutton(
-				QueueButton::BagInfo)}>
-        		<p><strong>{"BAG"}</strong></p>
-        		<p class="bag-text">{bag_str}</p>
-        	</ButtonComponent>
-			{bag_indicator(fill.clamp(0, length)+1)}
+			<div class="next-button">
+				<ButtonComponent onbutton={onbutton(
+					QueueButton::NextText)}>
+	        		<p><strong>{"NEXT"}</strong></p>
+	        		<p class="next-text">{
+	        			format!{"{}", upcoming}}
+	        			</p>
+	        	</ButtonComponent>
+			</div>
+			<div class="bag-button">
+				<ButtonComponent onbutton={onbutton(
+					QueueButton::BagInfo)}>
+	        		<p><strong>{"BAG"}</strong></p>
+	        		<p class="bag-text">{bag_str}</p>
+	        	</ButtonComponent>
+				{bag_indicator(fill.clamp(0, length)+1)}
+			</div>
 		</div>
 	}
 }

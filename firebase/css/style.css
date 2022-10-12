@@ -91,7 +91,7 @@ p {
 	color: #FFF;
 	text-align: center;
 	margin: 0;
-	line-height: 1;
+	line-height: 0.8;
 	font-family: "Calibri", sans-serif;
 }
 
@@ -110,7 +110,7 @@ p {
 .spacer {
 	visibility: hidden;
 	width: 80%;
-	margin: 1.5% 10%;
+	margin: 1% 10%;
 	background: #FFF;
 }
 
@@ -119,17 +119,11 @@ p {
 }
 
 .bag-text, .next-text {
-	letter-spacing: 1px;
-	font-size: 100%;
 	overflow-wrap: break-word;
 }
 
-button:has(.bag-text), button:has(.next-text) {
-	aspect-ratio: 4/1.5;
-}
-
-button:has(.bag-text)>p, button:has(.next-text)>p {
-	font-size: 100%;
+.next-button>button, .bag-button>button {
+	aspect-ratio: auto;
 }
 
 button {
@@ -419,14 +413,14 @@ p, img, svg {
 	pointer-events: none;
 }
 
-:has(.piece-box)>.speculative {
+.speculative {
 	position: absolute;
 	right: 5%;
 	top: 5%;
 	width: 30%;
 }
 
-:has(.board)>.speculative {
+.board-column>.speculative {
 	position: absolute;
 	right: 1%;
 	top: 1%;

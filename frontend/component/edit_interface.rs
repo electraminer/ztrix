@@ -317,26 +317,6 @@ impl Component for EditInterface {
 					queue[n-1] = cycle_piece(queue[n-1]);
 					update_bag(&mut self.game, 0);
 				},
-				EditButton::SetQueue => {
-					let queue = &mut self.game.queue;
-					let string = queue.pieces.iter()
-						.map(|p| format!{"{}", p})
-						.collect::<Vec<String>>().join("");
-					let string = web_sys::window()
-						.expect("should be a window")
-						.prompt_with_message_and_default(
-							"Set Queue: ", &string)
-						.unwrap_or(None).unwrap_or(string);
-					let mut chars = string.chars();
-					queue.pieces = VecDeque::new();
-					while let Ok(p) = PieceType::from_chars(
-						&mut chars) {
-						queue.pieces.push_back(p);
-					}
-					self.button_handler.update(
-						ButtonEvent::Release(
-							EditButton::SetQueue));
-				}
 				EditButton::SetBagPos => {
 					update_bag(&mut self.game, 1);
 				},
@@ -402,7 +382,24 @@ impl Component for EditInterface {
 					self.game = Game::default(),
 				_ => (),
 			}
-			ButtonEvent::Release(b) => match b {		
+			ButtonEvent::Release(b) => match b {
+				EditButton::SetQueue => {
+					let queue = &mut self.game.queue;
+					let string = queue.pieces.iter()
+						.map(|p| format!{"{}", p})
+						.collect::<Vec<String>>().join("");
+					let string = web_sys::window()
+						.expect("should be a window")
+						.prompt_with_message_and_default(
+							"Set Queue: ", &string)
+						.unwrap_or(None).unwrap_or(string);
+					let mut chars = string.chars();
+					queue.pieces = VecDeque::new();
+					while let Ok(p) = PieceType::from_chars(
+						&mut chars) {
+						queue.pieces.push_back(p);
+					}
+				}		
 				EditButton::Play => {
 					let history = ctx.link().history()
 						.expect("should be a history");

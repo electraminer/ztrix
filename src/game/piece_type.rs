@@ -93,13 +93,13 @@ impl FromChars for PieceType {
 	where 	I: Iterator<Item = char>,
 			Self: Sized {
 		Ok(match chars.next().ok_or(())? {
-			'I' => PieceType::I,
-			'O' => PieceType::O,
-			'S' => PieceType::S,
-			'Z' => PieceType::Z,
-			'J' => PieceType::J,
-			'L' => PieceType::L,
-			'T' => PieceType::T,
+			'I' | 'i' => PieceType::I,
+			'O' | 'o' => PieceType::O,
+			'S' | 's' => PieceType::S,
+			'Z' | 'z' => PieceType::Z,
+			'J' | 'j' => PieceType::J,
+			'L' | 'l' => PieceType::L,
+			'T' | 't' => PieceType::T,
 			_ => return Err(())
 		})
 	}

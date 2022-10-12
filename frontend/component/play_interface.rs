@@ -322,9 +322,11 @@ impl Component for PlayInterface {
 						self.replay.get_game().hold, Some(_));
 					while let Ok(_) = self.replay.redo() {
 						if *self.replay.get_game() == game {
+							self.replay.undo();
 							break;
 						}
 						if queue.len() > 14 {
+							self.replay.undo();
 							break;
 						}
 						queue.push_back(match self.replay.get_game()
