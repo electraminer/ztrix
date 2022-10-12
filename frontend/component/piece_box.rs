@@ -38,10 +38,10 @@ pub fn piece_box_component(props: &Props) -> Html {
 				&JsValue::from_str(match piece {
 					PieceType::I => "#29D",
 					PieceType::O => "#CA0",
-					PieceType::J => "#03D",
-					PieceType::L => "#C51",
 					PieceType::S => "#1A1",
 					PieceType::Z => "#C12",
+					PieceType::J => "#03D",
+					PieceType::L => "#C51",
 					PieceType::T => "#819",
 				}));
     		if grayed {

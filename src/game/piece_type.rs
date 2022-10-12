@@ -11,10 +11,10 @@ use std::fmt;
 pub enum PieceType {
 	I,
 	O,
-	J,
-	L,
 	S,
 	Z,
+	J,
+	L,
 	T,
 }
 
@@ -23,10 +23,10 @@ impl PieceType {
 		match self {
 			PieceType::I => [(-1, 0), (0, 0), (1, 0), (2, 0)],
 			PieceType::O => [(0, 0), (1, 0), (0, -1), (1, -1)],
-			PieceType::J => [(-1, 0), (0, 0), (1, 0), (-1, 1)],
-			PieceType::L => [(-1, 0), (0, 0), (1, 0), (1, 1)],
 			PieceType::S => [(-1, 0), (0, 0), (0, 1), (1, 1)],
 			PieceType::Z => [(1, 0), (0, 0), (0, 1), (-1, 1)],
+			PieceType::J => [(-1, 0), (0, 0), (1, 0), (-1, 1)],
+			PieceType::L => [(-1, 0), (0, 0), (1, 0), (1, 1)],
 			PieceType::T => [(-1, 0), (0, 0), (1, 0), (0, 1)],
 		}.map(|(x, y)| Vector::new(x, y))
 	}
@@ -44,7 +44,7 @@ impl PieceType {
 		}.map(|(x, y)| Vector::new(x, y))
 	}
 
-	pub fn get_jlszt_offsets(rot: Rotation) -> [Vector; 5] {
+	pub fn get_szjlt_offsets(rot: Rotation) -> [Vector; 5] {
 		match rot {
 			Rotation::Zero =>
 					[(0, 0), (0, 0), (0, 0), (0, 0), (0, 0)],
@@ -61,7 +61,7 @@ impl PieceType {
 		match self {
 			PieceType::I | PieceType::O =>
 					PieceType::get_io_offsets(rot),
-			_ => PieceType::get_jlszt_offsets(rot),
+			_ => PieceType::get_szjlt_offsets(rot),
 		}
 	}
 
@@ -78,10 +78,10 @@ impl fmt::Display for PieceType {
 		let chr = match self {
 			PieceType::I => 'I',
 			PieceType::O => 'O',
-			PieceType::J => 'J',
-			PieceType::L => 'L',
 			PieceType::S => 'S',
 			PieceType::Z => 'Z',
+			PieceType::J => 'J',
+			PieceType::L => 'L',
 			PieceType::T => 'T',
 		};
 		write!(f, "{}", chr)
@@ -95,10 +95,10 @@ impl FromChars for PieceType {
 		Ok(match chars.next().ok_or(())? {
 			'I' => PieceType::I,
 			'O' => PieceType::O,
-			'J' => PieceType::J,
-			'L' => PieceType::L,
 			'S' => PieceType::S,
 			'Z' => PieceType::Z,
+			'J' => PieceType::J,
+			'L' => PieceType::L,
 			'T' => PieceType::T,
 			_ => return Err(())
 		})

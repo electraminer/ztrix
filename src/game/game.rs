@@ -9,6 +9,7 @@ use crate::game::BagRandomizer;
 use crate::game::Board;
 
 use crate::game::ActivePiece;
+use crate::serialize;
 
 use crate::game::Queue;
 
@@ -26,6 +27,7 @@ pub enum Action {
 	PlacePiece(Rotation, bool),
 	HoldPiece(Rotation),
 	ToggleZone,
+	Init,
 }
 
 #[derive(PartialEq, Clone)]
@@ -36,7 +38,7 @@ pub enum Clear {
 
 #[derive(Clone, Eq, Hash, PartialEq)]
 pub struct Game {
-	pub piece: MaybeActive,
+	pub piece: Option<MaybeActive>,
 	pub queue: Queue,
 	pub hold: Option<PieceType>,
 	pub has_held: bool,
@@ -46,40 +48,33 @@ pub struct Game {
 }
 
 impl Game {
-	pub fn new() -> Game {
-		let mut info = Info::new();
-		let mut rando = BagRandomizer::new();
-		let piece = rando.next(&mut info);
-		Game{
-			piece: MaybeActive::Inactive(piece),
-			queue: Queue::new(rando, &mut info),
-			hold: None,
-			has_held: false,
-			board: Board::new(),
-			in_zone: false,
-			over: false,
+	pub fn init(&mut self, info: &mut Info) {
+		self.queue.update(info);
+		if let None = self.piece {
+			self.piece = Some(
+				MaybeActive::Inactive(self.queue.next(info)));
 		}
 	}
 
-	pub fn get_current(&self) -> PieceType {
-		self.piece.get_type()
+	pub fn get_current(&self) -> Option<PieceType> {
+		self.piece.as_ref().and_then(|p| Some(p.get_type()))
 	}
 
 	pub fn get_active(&self) -> Option<&ActivePiece> {
 		match &self.piece {
-			MaybeActive::Active(p) => Some(p),
-			MaybeActive::Inactive(_) => None,
+			Some(MaybeActive::Active(p)) => Some(&p),
+			_ => None,
 		}
 	}
 
 	fn move_piece(&mut self, vec: Vector) {
-		if let MaybeActive::Active(active) = &mut self.piece {
+		if let Some(MaybeActive::Active(active)) = &mut self.piece {
 			active.try_move(&self.board, vec);
 		}
 	}
 
 	fn rotate_piece(&mut self, rot: Rotation) {
-		if let MaybeActive::Active(active) = &mut self.piece {
+		if let Some(MaybeActive::Active(active)) = &mut self.piece {
 			active.try_rotate(&self.board, rot);
 		}
 	}
@@ -88,12 +83,14 @@ impl Game {
 		if self.has_held {
 			return;
 		}
-		self.has_held = true;
-		let swap = self.hold.unwrap_or_else(|| {
-			self.queue.next(info)
-		});
-		self.hold = Some(self.get_current());
-		self.piece = MaybeActive::Inactive(swap);
+		if let Some(current) = self.get_current() {
+			self.has_held = true;
+			let swap = self.hold.unwrap_or_else(|| {
+				self.queue.next(info)
+			});
+			self.hold = Some(current);
+			self.piece = Some(MaybeActive::Inactive(swap));	
+		}
 	}
 
 	fn spawn(&mut self, irs: Rotation, ihs: bool,
@@ -102,7 +99,7 @@ impl Game {
 			self.hold(info);
 		}
 		let mut clears = Vec::new();
-		if let MaybeActive::Inactive(current) = self.piece {
+		if let Some(MaybeActive::Inactive(current)) = self.piece {
 			match ActivePiece::spawn(
 				&self.board, current, irs).or_else(|| {
 					if self.in_zone {
@@ -111,7 +108,7 @@ impl Game {
 					ActivePiece::spawn(
 						&self.board, current, irs)
 				}) {
-				Some(a) => self.piece = MaybeActive::Active(a),
+				Some(a) => self.piece = Some(MaybeActive::Active(a)),
 				None => self.over = true,
 			}
 		}
@@ -120,15 +117,15 @@ impl Game {
 
 	fn place(&mut self, irs: Rotation, ihs: bool,
 			info: &mut Info) -> Vec<Clear> {
-		if let MaybeActive::Inactive(_) = self.piece {
+		if let Some(MaybeActive::Inactive(_)) = self.piece {
 			return vec![];
 		}
 		let current = self.queue.next(info);
 		let piece = MaybeActive::Inactive(current);
 		let active = match std::mem::replace(
-				&mut self.piece, piece) {
-			MaybeActive::Active(a) => a,
-			MaybeActive::Inactive(_) => return vec![],
+				&mut self.piece, Some(piece)) {
+			Some(MaybeActive::Active(a)) => a,
+			_ => return vec![],
 		};
 		let height = active.get_ghost(&self.board)
 			.get_mino_positions()
@@ -147,8 +144,10 @@ impl Game {
 		if ihs {
 			self.hold(info);
 		}
+		let current = self.get_current().expect(
+			"should be a current piece");
 		if matches! { ActivePiece::spawn(
-			&self.board, self.get_current(), irs), None }
+			&self.board, current, irs), None }
 			|| height >= 20 {
 			if self.in_zone {
 				clears.append(&mut self.toggle_in_zone())
@@ -190,38 +189,36 @@ impl Game {
 			Action::HoldPiece(irs) =>
 				self.spawn(irs, true, info),
 			Action::ToggleZone => self.toggle_in_zone(),
+			Action::Init => {self.init(info); vec![]},
 		}
 	}
 }
 
 impl Default for Game {
 	fn default() -> Game {
-		Game::new()
+		Game{
+			piece: None,
+			queue: Queue::new(
+				BagRandomizer::new(), 4),
+			hold: None,
+			has_held: false,
+			board: Board::new(),
+			in_zone: false,
+			over: false,
+		}
 	}
 }
 
 impl fmt::Display for Game {
 
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "{}", self.piece)?;
+		serialize::write_option(f, self.piece.as_ref())?;
 		write!(f, "{}", self.queue)?;
-		match self.hold {
-			None => write!(f, "_")?,
-			Some(piece) => write!(f, "{}", piece)?,
-		}
-		match self.has_held {
-			false => write!(f, "F")?,
-			true => write!(f, "T")?,
-		}
+		serialize::write_option(f, self.hold)?;
+		serialize::write_bool(f, self.has_held)?;
 		write!(f, "{}", self.board)?;
-		match self.in_zone {
-			false => write!(f, "F")?,
-			true => write!(f, "T")?,
-		}
-		match self.over {
-			false => write!(f, "F"),
-			true => write!(f, "T"),
-		}
+		serialize::write_bool(f, self.in_zone)?;
+		serialize::write_bool(f, self.over)
 	}
 }
 
@@ -231,19 +228,13 @@ impl FromChars for Game {
 			Self: Sized {
 		let mut chars = chars.peekable();
 		Ok(Game {
-			piece: MaybeActive::from_chars(&mut chars)?,
+			piece: Option::from_chars(&mut chars)?,
 			queue: Queue::from_chars(&mut chars)?,
-			hold: match chars.peek().ok_or(())? {
-				'_' => {
-					chars.next();
-					None
-				},
-				_ => Some(PieceType::from_chars(&mut chars)?),
-			},
-			has_held: chars.next().ok_or(())? == 'T',
+			hold: Option::from_chars(&mut chars)?,
+			has_held: bool::from_chars(&mut chars)?,
 			board: Board::from_chars(&mut chars)?,
-			in_zone: chars.next().ok_or(())? == 'T',
-			over: chars.next().ok_or(())? == 'T',
+			in_zone: bool::from_chars(&mut chars)?,
+			over: bool::from_chars(&mut chars)?,
 		})
 	}
 }

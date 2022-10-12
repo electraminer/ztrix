@@ -6,6 +6,14 @@ pub trait FromChars {
 			Self: Sized;
 }
 
+pub fn write_bool(f: &mut fmt::Formatter, b: bool)
+		-> fmt::Result {
+	match b {
+		true => write!(f, "T"),
+		false => write!(f, "F"),
+	}
+}
+
 impl FromChars for bool {
 	fn from_chars<I>(chars: &mut I) -> Result<Self, ()>
 	where 	I: Iterator<Item = char>,
@@ -14,6 +22,31 @@ impl FromChars for bool {
 			'F' => false,
 			'T' => true,
 			_ => return Err(()),
+		})
+	}
+}
+
+pub fn write_option<T>(f: &mut fmt::Formatter, option: Option<T>)
+		-> fmt::Result
+where 	T: fmt::Display {
+	match option {
+		None => write!(f, "_"),
+		Some(piece) => write!(f, "{}", piece),
+	}
+}
+
+impl<T> FromChars for Option<T>
+where T: FromChars {
+	fn from_chars<I>(chars: &mut I) -> Result<Self, ()>
+	where 	I: Iterator<Item = char>,
+			Self: Sized {
+		let mut chars = chars.peekable();
+		Ok(match chars.peek().ok_or(())? {
+			'_' => {
+				chars.next();
+				None
+			},
+			_ => Some(T::from_chars(&mut chars)?),
 		})
 	}
 }

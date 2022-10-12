@@ -49,17 +49,20 @@ pub struct Replay {
 }
 
 impl Replay {
-	pub fn new(game: Game) -> Replay {
+	pub fn new(game: Game) -> Self {
 		let info = Info::new();
 		let index = info.index;
-		Replay{
+		let mut replay = Self {
 			current: Vec::new(),
 			choices: HashMap::new(),
 			game: game.clone(),
 			game_history: vec![game],
 			info: info,
 			info_history: vec![index],
-		}
+		};
+		replay.update(Action::Init);
+		replay.new_frame();
+		replay
 	}
 
 	pub fn get_game(&self) -> &Game {
@@ -70,11 +73,29 @@ impl Replay {
 		self.game_history.len() - 1
 	}
 
+	pub fn get_num_revealed(&self) -> usize {
+		self.info.index
+	}
+
 	pub fn revert(&mut self) {
 		self.current.clear();
 		self.game = self.game_history.last()
 			.expect("there should be a previous state")
 			.clone();
+	}
+
+	pub fn new_frame(&mut self) {
+		if self.current.len() == 0 {
+			return;
+		}
+		let game = self.game_history.last()
+			.expect("there should be a previous state")
+			.clone();
+		let choice = std::mem::replace(
+			&mut self.current, Vec::new());
+		self.choices.insert(game, choice);
+		self.game_history.push(self.game.clone());
+		self.info_history.push(self.info.index);
 	}
 
 	pub fn undo(&mut self) {
@@ -92,12 +113,12 @@ impl Replay {
 			.clone();
 	}
 
-	pub fn redo(&mut self) -> Vec<Clear> {
+	pub fn redo(&mut self) -> Result<Vec<Clear>, ()> {
 		let game = self.game_history.last()
 			.expect("there should be a previous state")
 			.clone();
-		let mut clears = Vec::new();
 		if let Some(choice) = self.choices.get(&game) {
+			let mut clears = Vec::new();
 			self.current.clear();
 			self.game = game;
 			for action in choice.iter() {
@@ -106,8 +127,10 @@ impl Replay {
 			}
 			self.game_history.push(self.game.clone());
 			self.info_history.push(self.info.index);
+			Ok(clears)
+		} else {
+			Err(())
 		}
-		clears
 	}
 
 	pub fn update(&mut self, action: Action)
@@ -118,14 +141,7 @@ impl Replay {
 			.expect("there should be a previous state")
 			.clone();
 		if self.info.index != index {
-			let game = self.game_history.last()
-				.expect("there should be a previous state")
-				.clone();
-			let choice = std::mem::replace(
-				&mut self.current, Vec::new());
-			self.choices.insert(game, choice);
-			self.game_history.push(self.game.clone());
-			self.info_history.push(self.info.index);
+			self.new_frame();
 		}
 		clears
 	}
@@ -138,19 +154,20 @@ impl Replay {
 		if backward > self.info.index {
 			return;
 		}
-		let mut actions = Vec::new();
-		for _ in 0..backward {
+		let target_index = self.info.index - backward;
+		let mut choices = Vec::new();
+		while self.info.index > target_index {
 			self.undo();
-			let choice = self.choices.get(&self.game)
+			choices.push(self.choices.get(&self.game)
 				.expect("should have saved actions")
-				.clone();
-			for action in choice.iter().rev() {
-				actions.push(*action);
-			}
+				.clone());
 		}
-		self.reroll_forward(0);
-		for action in actions.iter().rev() {
-			self.update(*action);
+		self.reroll_forward(target_index - self.info.index);
+		for choice in choices.iter().rev() {
+			for action in choice.iter() {
+				self.update(*action);
+			}
+			self.new_frame();
 		}
 	}
 }

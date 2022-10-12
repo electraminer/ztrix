@@ -60,10 +60,10 @@ pub fn board(props: &Props) -> Html {
 						match mino {
 							Mino::Piece(PieceType::I) => "#06A",
 							Mino::Piece(PieceType::O) => "#870",
-							Mino::Piece(PieceType::J) => "#01B",
-							Mino::Piece(PieceType::L) => "#730",
 							Mino::Piece(PieceType::S) => "#070",
 							Mino::Piece(PieceType::Z) => "#700",
+							Mino::Piece(PieceType::J) => "#01B",
+							Mino::Piece(PieceType::L) => "#730",
 							Mino::Piece(PieceType::T) => "#607",
 							Mino::Gray => "#666",
 						}));
@@ -80,10 +80,10 @@ pub fn board(props: &Props) -> Html {
 				match piece.get_type() {
 					PieceType::I => "#29D",
 					PieceType::O => "#CA0",
-					PieceType::J => "#03D",
-					PieceType::L => "#C51",
 					PieceType::S => "#1A1",
 					PieceType::Z => "#C12",
+					PieceType::J => "#03D",
+					PieceType::L => "#C51",
 					PieceType::T => "#819",
 				}));
 			match piece {

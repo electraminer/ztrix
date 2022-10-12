@@ -1,8 +1,10 @@
 
+use std::collections::VecDeque;
 use ztrix::game::game::Clear;
 use yew_router::history::History;
 use yew_router::scope_ext::RouterScopeExt;
 use ztrix::game::MaybeActive;
+use ztrix::game::Action;
 use component::keyboard_interface::KeyboardInterface;
 use component::button::ButtonComponent;
 use component::game::GameButton;
@@ -167,7 +169,7 @@ impl Component for PlayInterface {
         				Msg::KeyButton(e))}>
             	<GameComponent
             		game={self.replay.get_game().clone()}
-            		frame={self.replay.get_frame()}
+            		num_revealed={self.replay.get_num_revealed()}
             		last_clear={self.last_clear.clone()}
 	      			top_left={{ html! {
 						<ButtonComponent
@@ -285,32 +287,81 @@ impl Component for PlayInterface {
     				if let Some(clear) = clears.pop() {
     					self.last_clear = Some(clear);
     				}
+    				if let Action::PlacePiece(_, _) = action {
+    					self.replay.new_frame();
+    				}
     			}
     			MetaAction::Revert => self.replay.revert(),
     			MetaAction::Undo =>
-	    			if self.replay.get_frame() > 0 {
+	    			if self.replay.get_frame() > 1 {
 	    				self.replay.undo();
+	    				self.last_clear = None;
 	    			} else {
 	    				self.replay.revert();
 	    			}
     			MetaAction::Redo => {
-    				let mut clears = self.replay.redo();
-    				if let Some(clear) = clears.pop() {
-    					self.last_clear = Some(clear);
+    				if let Ok(mut clears) = self.replay.redo() {
+	    				if let Some(clear) = clears.pop() {
+	    					self.last_clear = Some(clear);
+	    				}
     				}
     			}
     			MetaAction::Reroll(back) =>
     				self.replay.reroll_backward(back),
     			MetaAction::Restart => {
-    				for _ in 0..self.replay.get_frame() {
+    				for _ in 1..self.replay.get_frame() {
     					self.replay.undo();
     				}
+	    			self.last_clear = None;
 				},
 				MetaAction::Edit => {
 					self.replay.revert();
 					let mut game = self.replay.get_game().clone();
-					game.piece = MaybeActive::Inactive(
-						game.get_current());
+					let mut queue = VecDeque::new();
+					let mut held_ever = matches!(
+						self.replay.get_game().hold, Some(_));
+					while let Ok(_) = self.replay.redo() {
+						if *self.replay.get_game() == game {
+							break;
+						}
+						if queue.len() > 14 {
+							break;
+						}
+						queue.push_back(match self.replay.get_game()
+							.has_held {
+								true => match held_ever {
+									true => self.replay.get_game()
+									.hold
+									.expect("should be a held piece"),
+									false => {
+										held_ever = true;
+										self.replay.get_game()
+										.get_current()
+										.expect("should be a current piece")
+									}
+								}		
+								false => self.replay.get_game()
+									.get_current()
+									.expect("should be a current piece"),
+							});
+					}
+					let num_random = (self.replay.get_game()
+						.queue.length + 1).clamp(0, queue.len());
+					for _ in 0..num_random {
+						self.replay.undo();
+					}
+					let rando = self.replay.get_game()
+						.queue.rando.clone();
+					for _ in num_random..queue.len() {
+						self.replay.undo();
+					}
+					queue.pop_back();
+					game.piece = game.get_current().and_then(
+						|p| Some(MaybeActive::Inactive(p)));
+					if queue.len() > game.queue.fill() {
+							game.queue.pieces = queue;
+							game.queue.rando = rando;
+						}
 					for row in game.board.matrix.iter_mut() {
 						for mino in row.iter_mut() {
 							*mino = match mino {
@@ -319,6 +370,7 @@ impl Component for PlayInterface {
 							}
 						}
 					}
+					game.has_held = false;
 					let window = web_sys::window()
 						.expect("should be a window");
 					let url = format!{"/edit/{}", game};

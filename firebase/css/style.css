@@ -96,7 +96,7 @@ p {
 }
 
 .side-column button {
-	aspect-ratio: 4/2.75;
+	aspect-ratio: 4/2.5;
 	width: 80%;
 	margin: 0% 10%;
 	padding: 2px 0 0 0;
@@ -110,7 +110,7 @@ p {
 .spacer {
 	visibility: hidden;
 	width: 80%;
-	margin: 2.5% 10%;
+	margin: 1.5% 10%;
 	background: #FFF;
 }
 
@@ -118,8 +118,18 @@ p {
 	visibility: visible;
 }
 
-.bag-text {
+.bag-text, .next-text {
 	letter-spacing: 1px;
+	font-size: 100%;
+	overflow-wrap: break-word;
+}
+
+button:has(.bag-text), button:has(.next-text) {
+	aspect-ratio: 4/1.5;
+}
+
+button:has(.bag-text)>p, button:has(.next-text)>p {
+	font-size: 100%;
 }
 
 button {
@@ -153,7 +163,7 @@ button>img {
 
 .bottom-left>button, .bottom-right>button {
 	width: 80%;
-	aspect-ratio: 4/3;
+	aspect-ratio: 4/2.75;
 	margin: 5% 10% 0;
 }
 
@@ -400,18 +410,25 @@ svg text{
 	font-family: "Calibri", sans-serif;
 }
 
-:not(input)::selection {
-    color: none;
-    background: none;
+:not(input) {
+   user-drag: none;  
+   user-select: none;
 }
 
 p, img, svg {
 	pointer-events: none;
 }
 
-.speculative {
+:has(.piece-box)>.speculative {
 	position: absolute;
 	right: 5%;
 	top: 5%;
 	width: 30%;
+}
+
+:has(.board)>.speculative {
+	position: absolute;
+	right: 1%;
+	top: 1%;
+	width: 10%;
 }

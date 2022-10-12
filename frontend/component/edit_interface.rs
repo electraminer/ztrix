@@ -1,4 +1,6 @@
 
+use std::collections::VecDeque;
+use ztrix::serialize::FromChars;
 use controller::input_handler::ButtonHandler;
 use user_prefs::UserPrefs;
 use std::str::FromStr;
@@ -27,11 +29,11 @@ use ztrix::game::PieceType;
 fn cycle_piece(piece: PieceType) -> PieceType {
 	match piece {
 		PieceType::I => PieceType::O,
-		PieceType::O => PieceType::J,
-		PieceType::J => PieceType::L,
-		PieceType::L => PieceType::S,
+		PieceType::O => PieceType::S,
 		PieceType::S => PieceType::Z,
-		PieceType::Z => PieceType::T,
+		PieceType::Z => PieceType::J,
+		PieceType::J => PieceType::L,
+		PieceType::L => PieceType::T,
 		PieceType::T => PieceType::I,
 	}
 }
@@ -41,13 +43,13 @@ fn update_bag(game: &mut Game, advance: usize) {
 	if bag_pos > 7 {
 		bag_pos -= 7;
 	}
-	let c = 7 - 4 - 1;
-	let used: EnumSet<PieceType> =
-		(bag_pos..7)
-		.filter_map(|n| if n == c {
-			Some(game.get_current())
-		} else if n > c {
-			Some(game.queue[n - c - 1])
+	let fill = game.queue.fill();
+	let eliminated = 7 - bag_pos;
+	let used: EnumSet<PieceType> = (0..eliminated)
+		.filter_map(|n| if n == fill {
+			game.get_current()
+		} else if n < fill {
+			Some(game.queue[fill - n - 1])
 		} else {
 			None
 		}).collect();
@@ -60,10 +62,12 @@ fn update_bag(game: &mut Game, advance: usize) {
 
 #[derive(Serialize, Deserialize)]
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
+#[derive(Debug)]
 pub enum EditButton {
 	SetHold,
 	SetCurrent,
 	SetNext(usize),
+	SetQueue,
 	SetBagPos,
 	ToggleZone,
 	ToggleHoldUsed,
@@ -81,6 +85,7 @@ impl EditButton {
             EditButton::SetCurrent => "Set Current",
             EditButton::SetNext(n) =>
             	return format!{"Set Next #{}", n},
+            EditButton::SetQueue => "Set Queue",
             EditButton::SetBagPos => "Set Bag Position",
             EditButton::ToggleZone => "Toggle Zone",
             EditButton::ToggleHoldUsed => "Toggle Hold Used",
@@ -180,7 +185,10 @@ impl Component for EditInterface {
 	      		<div class="row">
 	      			<input type="text"
 	      				ref={self.input.clone()}
-	      				placeholder="https://ztrix-game.web.app/game/..."/>
+	      				placeholder="https://ztrix-game.web.app/game/..."
+	      				onkeydown={Callback::from(
+	      					|e: KeyboardEvent|
+	      						e.stop_propagation())}/>
 	      		</div>
 	      		<div class="row">
 	      			<ButtonComponent
@@ -246,6 +254,9 @@ impl Component for EditInterface {
 							QueueButton::NextBox(n)) =>
 								EditButton::SetNext(n+1),
 						GameButton::Queue(
+							QueueButton::NextText) =>
+								EditButton::SetQueue,
+						GameButton::Queue(
 							QueueButton::BagInfo) =>
 								EditButton::SetBagPos,
 					})) {
@@ -276,6 +287,8 @@ impl Component for EditInterface {
 				return true;
 			}
 		};
+		web_sys::console::log_1(&format!{
+			"{:?}", event}.into());
 		match event {
 			ButtonEvent::Press(b) => match b {
 				EditButton::SetHold => {
@@ -288,8 +301,15 @@ impl Component for EditInterface {
 				},
 				EditButton::SetCurrent => {
 					let piece = &mut self.game.piece;
-					*piece = MaybeActive::Inactive(
-						cycle_piece(piece.get_type()));
+					*piece = match piece {
+						Some(p) => match p.get_type() {
+							PieceType::T => None,
+							p => Some(MaybeActive::Inactive(
+								cycle_piece(p))),
+						},
+						None => Some(MaybeActive::Inactive(
+							PieceType::I)),
+					};
 					update_bag(&mut self.game, 0);
 				},
 				EditButton::SetNext(n) => {
@@ -297,6 +317,26 @@ impl Component for EditInterface {
 					queue[n-1] = cycle_piece(queue[n-1]);
 					update_bag(&mut self.game, 0);
 				},
+				EditButton::SetQueue => {
+					let queue = &mut self.game.queue;
+					let string = queue.pieces.iter()
+						.map(|p| format!{"{}", p})
+						.collect::<Vec<String>>().join("");
+					let string = web_sys::window()
+						.expect("should be a window")
+						.prompt_with_message_and_default(
+							"Set Queue: ", &string)
+						.unwrap_or(None).unwrap_or(string);
+					let mut chars = string.chars();
+					queue.pieces = VecDeque::new();
+					while let Ok(p) = PieceType::from_chars(
+						&mut chars) {
+						queue.pieces.push_back(p);
+					}
+					self.button_handler.update(
+						ButtonEvent::Release(
+							EditButton::SetQueue));
+				}
 				EditButton::SetBagPos => {
 					update_bag(&mut self.game, 1);
 				},

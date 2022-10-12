@@ -22,7 +22,7 @@ pub struct Props {
 	#[prop_or_default]
 	pub game: Game,
 	#[prop_or_default]
-	pub frame: usize,
+	pub num_revealed: usize,
 	#[prop_or_default]
 	pub last_clear: Option<Clear>,
 	#[prop_or_default]
@@ -70,6 +70,16 @@ pub fn game_component(props: &Props) -> Html {
             		board={props.game.board.clone()}
 		     		piece={props.game.piece.clone()}
 		     		onmouse={props.onboardmouse.clone()}/>
+					{if props.num_revealed
+						> props.game.queue.length {
+						html! {
+							<img class="speculative"
+								src="/assets/speculation.png"
+								alt="🔁"/>
+						}
+					} else {
+						html! { }
+					}}
 		     		<svg class="zone-lines"
 		     			viewBox="0 0 100 20"
 		     			style={{
@@ -139,7 +149,7 @@ pub fn game_component(props: &Props) -> Html {
 	        		<p><strong>{"NEXT"}</strong></p>
 	        		<QueueComponent
 	        			queue={props.game.queue.clone()}
-	        			num_speculative={props.frame}
+	        			num_speculative={props.num_revealed}
 						onbutton={props.onbutton.reform(
 							|e: ButtonEvent<QueueButton>| e.map(|b|
 								GameButton::Queue(b)))}/>

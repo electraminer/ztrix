@@ -111,7 +111,7 @@ impl ActionHandler {
 		self.frozen = false;
 		let mut vec = Vec::new();
 		let game = replay.get_game();
-		if let MaybeActive::Inactive(_) = game.piece {
+		if let Some(MaybeActive::Inactive(_)) = game.piece {
 			if matches!{button, PlayButton::Left | PlayButton::Right |
 				PlayButton::DownSlow | PlayButton::Place} {
 				vec.push(MetaAction::Action(
@@ -222,7 +222,7 @@ impl ActionHandler {
 		let mut vec = Vec::new();
 
 		if self.entry_delay_timer < duration {
-			if let MaybeActive::Inactive(_) = game.piece {
+			if let Some(MaybeActive::Inactive(_)) = game.piece {
 				vec.push(MetaAction::Action(
 					Action::SpawnPiece(
     					self.irs(), self.held.contains(&PlayButton::Hold))));
