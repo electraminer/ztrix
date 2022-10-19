@@ -51,7 +51,7 @@ fn update_bag(game: &mut Game, advance: usize) {
 		} else if n < fill {
 			Some(game.queue[fill - n - 1])
 		} else {
-			None
+			game.hold
 		}).collect();
 	game.queue.rando.set =
 		EnumSet::all().iter()
@@ -295,7 +295,8 @@ impl Component for EditInterface {
 						Some(PieceType::T) => None,
 						Some(p) => Some(cycle_piece(p)),
 						None => Some(PieceType::I),
-					}
+					};
+					update_bag(&mut self.game, 0);
 				},
 				EditButton::SetCurrent => {
 					let piece = &mut self.game.piece;
@@ -318,7 +319,7 @@ impl Component for EditInterface {
 				EditButton::SetBagPos => {
 					update_bag(&mut self.game, 1);
 				},
-				EditButton:: ToggleHoldUsed => {
+				EditButton::ToggleHoldUsed => {
 					self.game.has_held = !self.game.has_held;
 				},
 				EditButton::ToggleZone => {
@@ -383,6 +384,7 @@ impl Component for EditInterface {
 			ButtonEvent::Release(b) => match b {
 				EditButton::SetQueue => {
 					let queue = &mut self.game.queue;
+					let start_fill = queue.fill();
 					let string = queue.pieces.iter()
 						.map(|p| format!{"{}", p})
 						.collect::<Vec<String>>().join("");
@@ -397,10 +399,22 @@ impl Component for EditInterface {
 						&mut chars) {
 						queue.pieces.push_back(p);
 					}
+					let end_fill = queue.fill();
+					let advance = if start_fill > end_fill {
+						(start_fill - end_fill) % 7
+					} else {
+						7 - (end_fill - start_fill) % 7
+					};
+					update_bag(&mut self.game, advance);
 				}		
 				EditButton::Play => {
 					let history = ctx.link().history()
 						.expect("should be a history");
+					history.replace(
+						Route::EditGame {
+							game: self.game.clone()
+						}
+					);
 					history.push(
 						Route::GameGame {
 							game: self.game.clone()

@@ -203,10 +203,10 @@ impl ActionHandler {
 		    }
 	    	PlayButton::Hold => {
 	    		if !replay.get_game().over {
+		    		replay.update(Action::HoldPiece(self.irs()));
 		    		if replay.get_game().hold == None {
 			    		replay.new_frame();
 		    		}
-		    		replay.update(Action::HoldPiece(self.irs()));
 	    		}
 	    	}
 	    	PlayButton::Zone => {
@@ -234,20 +234,24 @@ impl ActionHandler {
 	    		self.frozen = true;
 				self.moved = false;
 	    	}
-	    	PlayButton::RerollCurrent =>
-	    		if replay.get_frame() >= 4 + 1 {
-    				replay.reroll_backward(4 + 1);
-	    		self.entry_delay_timer = handling_settings.entry_delay;
+	    	PlayButton::RerollCurrent => {
+	    		let back = replay.get_game().queue.fill() + 1;
+	    		if replay.get_num_revealed() >= back {
+    				replay.reroll_backward(back);
+	    			self.entry_delay_timer = handling_settings.entry_delay;
 	    			self.frozen = true;
 					self.moved = false;
 	    		}
-	    	PlayButton::RerollNext(n) =>
-	    		if replay.get_frame() >= 4 - n + 1 {
-    				replay.reroll_backward(4 - n + 1);
-	    		self.entry_delay_timer = handling_settings.entry_delay;
+	    	}
+	    	PlayButton::RerollNext(n) => {
+	    		let back = replay.get_game().queue.fill() + 1 - n;
+	    		if replay.get_num_revealed() >= back {
+    				replay.reroll_backward(back);
+	    			self.entry_delay_timer = handling_settings.entry_delay;
 	    			self.frozen = true;
 					self.moved = false;
 	    		}
+	    	}
 	    	PlayButton::Restart => {
 	    		replay.revert();
 				for _ in 1..replay.get_frame() {

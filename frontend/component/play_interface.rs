@@ -278,8 +278,6 @@ impl Component for PlayInterface {
 			self.replay.revert();
 			let mut game = self.replay.get_game().clone();
 			let mut queue = VecDeque::new();
-			let mut held_ever = matches!(
-				self.replay.get_game().hold, Some(_));
 			while let Ok(_) = self.replay.redo() {
 				if *self.replay.get_game() == game {
 					self.replay.undo();
@@ -289,23 +287,9 @@ impl Component for PlayInterface {
 					self.replay.undo();
 					break;
 				}
-				queue.push_back(match self.replay.get_game()
-					.has_held {
-						true => match held_ever {
-							true => self.replay.get_game()
-							.hold
-							.expect("should be a held piece"),
-							false => {
-								held_ever = true;
-								self.replay.get_game()
-								.get_current()
-								.expect("should be a current piece")
-							}
-						}		
-						false => self.replay.get_game()
-							.get_current()
-							.expect("should be a current piece"),
-					});
+				queue.push_back(self.replay.get_game()
+					.get_current()
+					.expect("should be a current piece"));
 			}
 			let num_random = (self.replay.get_game()
 				.queue.length + 1).clamp(0, queue.len());
