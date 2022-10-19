@@ -24,7 +24,7 @@ pub enum Action {
 	MoveDown,
 	Rotate(Rotation),
 	SpawnPiece(Rotation, bool),
-	PlacePiece(Rotation, bool),
+	PlacePiece,
 	HoldPiece(Rotation),
 	ToggleZone,
 	Init,
@@ -79,25 +79,7 @@ impl Game {
 		}
 	}
 
-	fn hold(&mut self, info: &mut Info) {
-		if self.has_held {
-			return;
-		}
-		if let Some(current) = self.get_current() {
-			self.has_held = true;
-			let swap = self.hold.unwrap_or_else(|| {
-				self.queue.next(info)
-			});
-			self.hold = Some(current);
-			self.piece = Some(MaybeActive::Inactive(swap));	
-		}
-	}
-
-	fn spawn(&mut self, irs: Rotation, ihs: bool,
-			info: &mut Info) -> Vec<Clear> {
-		if ihs {
-			self.hold(info);
-		}
+	fn spawn(&mut self, irs: Rotation) -> Vec<Clear> {
 		let mut clears = Vec::new();
 		if let Some(MaybeActive::Inactive(current)) = self.piece {
 			match ActivePiece::spawn(
@@ -115,8 +97,50 @@ impl Game {
 		clears
 	}
 
-	fn place(&mut self, irs: Rotation, ihs: bool,
+	fn hold(&mut self, irs: Rotation,
 			info: &mut Info) -> Vec<Clear> {
+		if self.has_held {
+			return vec![];
+		}
+		if let Some(current) = self.get_current() {
+			self.has_held = true;
+			let swap = self.hold.unwrap_or_else(|| {
+				self.queue.next(info)
+			});
+			self.hold = Some(current);
+			self.piece = Some(MaybeActive::Inactive(swap));
+			self.spawn(irs)
+		} else {
+			vec![]
+		}
+	}
+
+	fn hold_if_active(&mut self, irs: Rotation,
+			info: &mut Info) -> Vec<Clear> {
+		if let Some(MaybeActive::Active(_)) = self.piece {
+			self.hold(irs, info)
+		} else {
+			vec![]
+		}
+	}
+
+	fn spawn_ihs(&mut self, irs: Rotation, ihs: bool,
+			info: &mut Info) -> Vec<Clear> {
+		let mut clears = Vec::new();
+		if !(self.has_held && ihs) {
+			clears.append(&mut self.spawn(irs));
+		}
+		if self.over {
+			return clears;
+		}
+		self.has_held = false;
+		if ihs {
+			clears.append(&mut self.hold(irs, info));
+		}
+		clears
+	}
+
+	fn place(&mut self, info: &mut Info) -> Vec<Clear> {
 		if let Some(MaybeActive::Inactive(_)) = self.piece {
 			return vec![];
 		}
@@ -140,15 +164,7 @@ impl Game {
 			0 => vec![],
 			c => vec![Clear::LineClear(c)],
 		};
-		self.has_held = false;
-		if ihs {
-			self.hold(info);
-		}
-		let current = self.get_current().expect(
-			"should be a current piece");
-		if matches! { ActivePiece::spawn(
-			&self.board, current, irs), None }
-			|| height >= 20 {
+		if height >= 20 {
 			if self.in_zone {
 				clears.append(&mut self.toggle_in_zone())
 			} else {
@@ -183,11 +199,10 @@ impl Game {
 			Action::Rotate(rot) => {
 				self.rotate_piece(rot); vec![]}
 			Action::SpawnPiece(irs, ihs) =>
-				self.spawn(irs, ihs, info),
-			Action::PlacePiece(irs, ihs) =>
-				self.place(irs, ihs, info),
+				self.spawn_ihs(irs, ihs, info),
+			Action::PlacePiece => self.place(info),
 			Action::HoldPiece(irs) =>
-				self.spawn(irs, true, info),
+				self.hold_if_active(irs, info),
 			Action::ToggleZone => self.toggle_in_zone(),
 			Action::Init => {self.init(info); vec![]},
 		}

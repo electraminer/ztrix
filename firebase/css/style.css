@@ -173,14 +173,10 @@ button>img {
 	aspect-ratio: 4/3;
 }
 
-.row>* {
+.row>*, .thin-row>*  {
 	flex: 1;
 	margin: 0% 1%;
 	width: 0;
-}
-
-.thin-row>* {
-	flex: 1;
 }
 
 .scrollable {
@@ -270,6 +266,10 @@ h1, h2, h3 {
 	flex: 4;
 }
 
+.thin-row>select {
+	flex: 1.5;
+}
+
 .binding-row>.thin-row {
 	margin: 0 0 1%;
 }
@@ -347,6 +347,8 @@ button:focus>.dropdown {
 
 	}
 }
+
+
 
 .paragraphs>p {
 	text-align: left;

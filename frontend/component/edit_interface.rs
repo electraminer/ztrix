@@ -287,8 +287,6 @@ impl Component for EditInterface {
 				return true;
 			}
 		};
-		web_sys::console::log_1(&format!{
-			"{:?}", event}.into());
 		match event {
 			ButtonEvent::Press(b) => match b {
 				EditButton::SetHold => {

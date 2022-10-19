@@ -9,7 +9,7 @@ path = "wasm.rs"
 [dependencies]
 ztrix = {path = "../../ztrix"}
 wasm-bindgen = "0.2.63"
-web-sys = { version = "0.3", "features" = [ "Window", "Document", "HtmlElement", "HtmlCanvasElement", "CanvasRenderingContext2d", "CssStyleDeclaration", "console", "Location", "UrlSearchParams", "MouseEvent", "HtmlCollection",
+web-sys = { version = "0.3", "features" = [ "Window", "Document", "HtmlElement", "HtmlCanvasElement", "CanvasRenderingContext2d", "CssStyleDeclaration", "console", "Location", "UrlSearchParams", "MouseEvent", "HtmlCollection", "HtmlSelectElement",
 "TouchList", "Touch", "DomRect", "Navigator", "Clipboard"]}
 yew = "0.19"
 yew-router = "0.16"

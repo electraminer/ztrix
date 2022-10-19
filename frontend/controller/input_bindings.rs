@@ -57,7 +57,7 @@ impl Default for KeyBindings {
 		        ("Digit3", PlayButton::RerollNext(3)),
 		        ("Digit4", PlayButton::RerollNext(4)),
 
-		        ("S", PlayButton::Restart),
+		        ("KeyS", PlayButton::Restart),
 		        ("F4", PlayButton::Restart),
 
 				("Escape", PlayButton::Edit),

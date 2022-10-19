@@ -1,9 +1,14 @@
 
+use wasm_bindgen::JsCast;
+use web_sys::HtmlSelectElement;
+use instant::Duration;
+use component::field_config::FieldConfig;
 use ztrix::game::Game;
 use yew_router::history::History;
 use yew_router::scope_ext::RouterScopeExt;
-use controller::action_handler::HandlingSettings;
+
 use controller::input_handler::ButtonEvent;
+use controller::action_handler::IrsMode;
 use component::button::ButtonComponent;
 use controller::input_bindings::ButtonBindings;
 use component::button_binding::ButtonBinding;
@@ -22,13 +27,20 @@ pub enum AnyButton {
 }
 
 pub enum Msg {
-	Bind(AnyButton, String),
-	Unbind(AnyButton, String),
 	LeftRow(Vec<PlayButton>),
 	RightRow(Vec<PlayButton>),
 	BottomRow(usize, Vec<PlayButton>),
 	AddRow,
 	RemoveRow,
+	BindKey(AnyButton, String),
+	UnbindKey(AnyButton, String),
+	SetIrsMode(IrsMode),
+	SetDas(Duration),
+	SetArr(Duration),
+	SetDownDas(Duration),
+	SetDownArr(Duration),
+	SetEntryDelay(Duration),
+	SetFreezeDelay(Duration),
 	Apply,
 	Cancel,
 	RevertDefault,
@@ -42,8 +54,7 @@ pub struct Props {
 }
 
 pub struct ConfigInterface {
-	key_bindings: KeyBindings,
-	button_bindings: ButtonBindings,
+	user_prefs: UserPrefs,
 }
 
 pub const BINDABLE_PLAY: [PlayButton; 19] = [
@@ -76,8 +87,7 @@ impl Component for ConfigInterface {
 	fn create(_ctx: &Context<Self>) -> Self {
 		let user_prefs = UserPrefs::get();
 		Self {
-			key_bindings: user_prefs.key_bindings.clone(),
-			button_bindings: user_prefs.button_bindings.clone(),
+			user_prefs: (*user_prefs).clone(),
 		}
 	}
 
@@ -126,18 +136,113 @@ impl Component for ConfigInterface {
 					</div>
 					<hr/>
 					<div class="thin-row">
+						<h2>{"Handling Settings"}</h2>
+					</div>
+					<div class="thin-row">
+						<h3>{"IRS/IHS Mode"}</h3>
+						<select onchange={ctx.link().batch_callback(
+							move |e: Event| match e.target()
+								.expect("should be a target")
+								.dyn_into::<HtmlSelectElement>()
+		    					.expect("element should be an input")
+	    						.value().as_str() {
+	    							"lenient" => Some(Msg::SetIrsMode(
+	    								IrsMode::Lenient)),
+	    							"accurate" => Some(Msg::SetIrsMode(
+	    								IrsMode::Accurate)),
+	    							_ => None,
+	    						})}>
+							<option value="lenient"
+								selected={{matches!{
+									self.user_prefs.handling_settings
+									.irs_mode, IrsMode::Lenient}}}>
+								{"Lenient"}</option>
+							<option value="accurate"
+								selected={{matches!{
+									self.user_prefs.handling_settings
+									.irs_mode, IrsMode::Accurate}}}>
+								{"Accurate"}</option>
+						</select>
+					</div>
+					<p>{"How Initial Rotation/Hold System behaves.
+						Use Accurate if you want to learn/practice
+						IRS mechanics identical to TE:C, and Lenient
+						if you want smoother controls that allow
+						buffering after piece placement."}</p>
+					<FieldConfig name="DAS (Auto-Shift Delay)"
+						value={{format!{
+	      				"{}", self.user_prefs.handling_settings
+	      					.das_duration.as_millis()}}}
+	      				onchange={ctx.link().batch_callback(
+	      					|s: String|
+	      						s.parse::<u64>().ok()
+	      						.map(|t| Msg::SetDas(
+	      							Duration::from_millis(t))))}/>
+	      			<p>{"Delay before sideways movement repeats."}</p>
+					<FieldConfig name="ARR (Auto-Repeat Rate)"
+						value={{format!{
+	      				"{}", self.user_prefs.handling_settings
+	      					.arr_duration.as_millis()}}}
+	      				onchange={ctx.link().batch_callback(
+	      					|s: String|
+	      						s.parse::<u64>().ok()
+	      						.map(|t| Msg::SetArr(
+	      							Duration::from_millis(t))))}/>
+	      			<p>{"Time between each repeated sideways movement."}</p>
+					<FieldConfig name="Downward DAS"
+						value={{format!{
+	      				"{}", self.user_prefs.handling_settings
+	      					.down_das_duration.as_millis()}}}
+	      				onchange={ctx.link().batch_callback(
+	      					|s: String|
+	      						s.parse::<u64>().ok()
+	      						.map(|t| Msg::SetDownDas(
+	      							Duration::from_millis(t))))}/>
+	      			<p>{"Delay before downward movement repeats."}</p>
+					<FieldConfig name="Downward ARR"
+						value={{format!{
+	      				"{}", self.user_prefs.handling_settings
+	      					.down_arr_duration.as_millis()}}}
+	      				onchange={ctx.link().batch_callback(
+	      					|s: String|
+	      						s.parse::<u64>().ok()
+	      						.map(|t| Msg::SetDownArr(
+	      							Duration::from_millis(t))))}/>
+	      			<p>{"Time between each repeated downward movement."}</p>
+					<FieldConfig name="Entry Delay"
+						value={{format!{
+	      				"{}", self.user_prefs.handling_settings
+	      					.entry_delay.as_millis()}}}
+	      				onchange={ctx.link().batch_callback(
+	      					|s: String|
+	      						s.parse::<u64>().ok()
+	      						.map(|t| Msg::SetEntryDelay(
+	      							Duration::from_millis(t))))}/>
+	      			<p>{"Buffer used to change DAS and IRS as a piece spawns."}</p>
+					<FieldConfig name="IRS + IHS Buffer Delay"
+						value={{format!{
+	      				"{}", self.user_prefs.handling_settings
+	      					.buffer_delay.as_millis()}}}
+	      				onchange={ctx.link().batch_callback(
+	      					|s: String|
+	      						s.parse::<u64>().ok()
+	      						.map(|t| Msg::SetFreezeDelay(
+	      							Duration::from_millis(t))))}/>
+	      			<p>{"Buffer used to simultaneously IRS and IHS."}</p>
+					<hr/>
+					<div class="thin-row">
 						<h2>{"Side Buttons"}</h2>
 					</div>
 					<ButtonBinding
 						name={"Left Buttons"}
-						bound={self.button_bindings
+						bound={self.user_prefs.button_bindings
 							.left_buttons.clone()}
 						onchange={ctx.link().callback(
 							move |r: Vec<PlayButton>|
 								Msg::LeftRow(r))}/>
 					<ButtonBinding
 						name={"Right Buttons"}
-						bound={self.button_bindings
+						bound={self.user_prefs.button_bindings
 							.right_buttons.clone()}
 						onchange={ctx.link().callback(
 							move |r: Vec<PlayButton>|
@@ -145,8 +250,9 @@ impl Component for ConfigInterface {
 					<div class="thin-row">
 						<h2>{"Bottom Buttons"}</h2>
 					</div>
-					{for self.button_bindings.bottom_buttons
-						.iter().enumerate().map(|(i, r)| html! {
+					{for self.user_prefs.button_bindings
+						.bottom_buttons.iter().enumerate()
+						.map(|(i, r)| html! {
 							<ButtonBinding
 								name={{format!{
 									"Row {} Buttons", i+1}}}
@@ -187,15 +293,16 @@ impl Component for ConfigInterface {
 					{for BINDABLE_PLAY.iter().map(|b| html! {
 						<KeyBinding
 							name={b.get_name()}
-							bound={self.key_bindings.play_bindings
-								.iter().filter(|(_, u)| *u == b)
+							bound={self.user_prefs.key_bindings
+								.play_bindings.iter()
+								.filter(|(_, u)| *u == b)
 								.map(|(c, _)| c.to_string())
 								.collect::<Vec<String>>()}
 							onbind={ctx.link().callback(
-								move |s: String| Msg::Bind(
+								move |s: String| Msg::BindKey(
 									AnyButton::PlayButton(*b), s))}
 							onunbind={ctx.link().callback(
-								move |s: String| Msg::Unbind(
+								move |s: String| Msg::UnbindKey(
 									AnyButton::PlayButton(*b), s))}/>
 					})}
 					<div class="thin-row">
@@ -204,15 +311,16 @@ impl Component for ConfigInterface {
 					{for BINDABLE_EDIT.iter().map(|b| html! {
 						<KeyBinding
 							name={b.get_name()}
-							bound={self.key_bindings.edit_bindings
-								.iter().filter(|(_, u)| *u == b)
+							bound={self.user_prefs.key_bindings
+								.edit_bindings.iter()
+								.filter(|(_, u)| *u == b)
 								.map(|(c, _)| c.to_string())
 								.collect::<Vec<String>>()}
 							onbind={ctx.link().callback(
-								move |s: String| Msg::Bind(
+								move |s: String| Msg::BindKey(
 									AnyButton::EditButton(*b), s))}
 							onunbind={ctx.link().callback(
-								move |s: String| Msg::Unbind(
+								move |s: String| Msg::UnbindKey(
 									AnyButton::EditButton(*b), s))}/>
 					})}
 					<hr/>
@@ -237,46 +345,57 @@ impl Component for ConfigInterface {
 	fn update(&mut self, ctx: &Context<Self>,
 			msg: Self::Message) -> bool {
 		match msg {
-			Msg::Bind(button, code) => match button {
+			Msg::LeftRow(row) =>
+				self.user_prefs.button_bindings.left_buttons = row,
+			Msg::RightRow(row) =>
+				self.user_prefs.button_bindings.right_buttons = row,
+			Msg::BottomRow(i, row) =>
+				if i < self.user_prefs.button_bindings.bottom_buttons.len() {
+					self.user_prefs.button_bindings.bottom_buttons[i] = row;
+				},
+			Msg::AddRow =>
+				self.user_prefs.button_bindings.bottom_buttons.push(
+					Vec::new()),
+			Msg::RemoveRow => {
+				self.user_prefs.button_bindings.bottom_buttons.pop();
+			}
+			Msg::BindKey(button, code) => match button {
 				AnyButton::PlayButton(b) => {
-					self.key_bindings.play_bindings
+					self.user_prefs.key_bindings.play_bindings
 						.insert(code, b);
 				}
 				AnyButton::EditButton(b) => {
-					self.key_bindings.edit_bindings
+					self.user_prefs.key_bindings.edit_bindings
 						.insert(code, b);
 				}
 			}
 
-			Msg::Unbind(button, code) => match button {
+			Msg::UnbindKey(button, code) => match button {
 				AnyButton::PlayButton(_) => {
-					self.key_bindings.play_bindings
+					self.user_prefs.key_bindings.play_bindings
 						.remove(&code);
 				}
 				AnyButton::EditButton(_) => {
-					self.key_bindings.edit_bindings
+					self.user_prefs.key_bindings.edit_bindings
 						.remove(&code);
 				}
 			}
-			Msg::LeftRow(row) =>
-				self.button_bindings.left_buttons = row,
-			Msg::RightRow(row) =>
-				self.button_bindings.right_buttons = row,
-			Msg::BottomRow(i, row) =>
-				if i < self.button_bindings.bottom_buttons.len() {
-					self.button_bindings.bottom_buttons[i] = row;
-				},
-			Msg::AddRow =>
-				self.button_bindings.bottom_buttons.push(
-					Vec::new()),
-			Msg::RemoveRow => {
-				self.button_bindings.bottom_buttons.pop();
-			}
+			Msg::SetIrsMode(mode) => self.user_prefs
+				.handling_settings.irs_mode = mode,
+			Msg::SetDas(duration) => self.user_prefs
+				.handling_settings.das_duration = duration,
+			Msg::SetArr(duration) => self.user_prefs
+				.handling_settings.arr_duration = duration,
+			Msg::SetDownDas(duration) => self.user_prefs
+				.handling_settings.down_das_duration = duration,
+			Msg::SetDownArr(duration) => self.user_prefs
+				.handling_settings.down_arr_duration = duration,
+			Msg::SetEntryDelay(duration) => self.user_prefs
+				.handling_settings.entry_delay = duration,
+			Msg::SetFreezeDelay(duration) => self.user_prefs
+				.handling_settings.buffer_delay = duration,
 			Msg::Apply => {
-				UserPrefs::set(
-					self.key_bindings.clone(),
-					self.button_bindings.clone(),
-					HandlingSettings::default());
+				UserPrefs::set(self.user_prefs.clone());
 				let history = ctx.link().history()
 					.expect("should be a history");
 				history.push(Route::GameGame {
@@ -291,8 +410,8 @@ impl Component for ConfigInterface {
 				})
 			}
 			Msg::RevertDefault => {
-				self.key_bindings = KeyBindings::default();
-				self.button_bindings = ButtonBindings::default();
+				self.user_prefs.key_bindings = KeyBindings::default();
+				self.user_prefs.button_bindings = ButtonBindings::default();
 			}
 		}
 		true

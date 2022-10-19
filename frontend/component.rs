@@ -15,6 +15,7 @@ pub mod edit_interface;
 
 pub mod key_binding;
 pub mod button_binding;
+pub mod field_config;
 
 pub mod config_interface;
 

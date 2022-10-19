@@ -8,7 +8,7 @@ use serde::Deserialize;
 
 use yewdux::prelude::*;
 
-#[derive(Default, Store, Serialize, Deserialize)]
+#[derive(Default, Store, Serialize, Deserialize, Clone)]
 #[store(storage = "local", storage_tab_sync)]
 pub struct UserPrefs {
     pub key_bindings: KeyBindings,
@@ -28,16 +28,9 @@ impl UserPrefs {
 		Dispatch::<Self>::new().get()
 	}
 
-    pub fn set(key_bindings: KeyBindings,
-            button_bindings: ButtonBindings,
-            handling_settings: HandlingSettings) {
+    pub fn set(mut user_prefs: UserPrefs) {
         let dispatch = Dispatch::<Self>::new();
-        let prefs = Self {
-            key_bindings: key_bindings,
-            button_bindings: button_bindings,
-            handling_settings: handling_settings,
-            nonce: dispatch.get().nonce + 1,
-        };
-        dispatch.set(prefs);
+        user_prefs.nonce = dispatch.get().nonce + 1;
+        dispatch.set(user_prefs);
     }
 }
