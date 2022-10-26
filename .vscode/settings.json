@@ -1,0 +1,9 @@
+{
+    "rust-analyzer.checkOnSave.overrideCommand": [
+        "cargo",
+        "check",
+        "--package=wasm",
+        "--target=wasm32-unknown-unknown",
+        "--message-format=json",
+    ]
+}

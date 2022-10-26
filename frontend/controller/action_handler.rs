@@ -188,7 +188,10 @@ impl ActionHandler {
 		    }
 		    PlayButton::Place => {
 		    	if !replay.get_game().over {
-			    	replay.update(Action::PlacePiece);
+			    	let clears = replay.update(Action::PlacePiece);
+					if let Some(Clear::ZoneClear(_)) = clears.last() {
+						self.last_zone_clear = clears.last().cloned();
+					}
 			    	replay.new_frame();
 			    	self.entry_delay_timer = handling_settings.entry_delay;
 					self.moved = false;
@@ -203,7 +206,10 @@ impl ActionHandler {
 		    }
 	    	PlayButton::Hold => {
 	    		if !replay.get_game().over {
-		    		replay.update(Action::HoldPiece(self.irs()));
+		    		let clears = replay.update(Action::HoldPiece(self.irs()));
+					if let Some(Clear::ZoneClear(_)) = clears.last() {
+						self.last_zone_clear = clears.last().cloned();
+					}
 		    		if replay.get_game().hold == None {
 			    		replay.new_frame();
 		    		}

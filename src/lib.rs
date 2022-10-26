@@ -7,3 +7,5 @@ pub mod game;
 pub mod replay;
 
 pub mod serialize;
+
+pub mod condition;
