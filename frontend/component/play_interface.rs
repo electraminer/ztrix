@@ -1,8 +1,6 @@
 
 use std::collections::VecDeque;
 
-use yew_router::history::History;
-use yew_router::scope_ext::RouterScopeExt;
 use ztrix::game::MaybeActive;
 
 use component::keyboard_interface::KeyboardInterface;
@@ -14,7 +12,6 @@ use controller::input_handler::ButtonEvent;
 use controller::input_handler::ButtonHandler;
 use controller::input_handler::TimeHandler;
 use controller::action_handler::ActionHandler;
-use component::router::Route;
 
 use component::game::GameComponent;
 
@@ -24,6 +21,7 @@ use yew::prelude::*;
 
 use ztrix::game::Game;
 use ztrix::game::Mino;
+use ztrix::puzzle::Puzzle;
 use ztrix::replay::Replay;
 
 use user_prefs::UserPrefs;
@@ -146,7 +144,8 @@ impl Component for PlayInterface {
     fn create(ctx: &Context<Self>) -> Self {
 		let link = ctx.link().clone();
         Self {
-        	replay: Replay::new(ctx.props().game.clone()),
+        	replay: Replay::new(
+				Puzzle::new(ctx.props().game.clone()), &mut |_| ()),
 			button_handler: ButtonHandler::new(),
 			time_handler: TimeHandler::new(),
         	action_handler: ActionHandler::new(),
@@ -164,9 +163,9 @@ impl Component for PlayInterface {
         			|e: ButtonEvent<String>|
         				Msg::KeyButton(e))}>
             	<GameComponent
-            		game={self.replay.get_game().clone()}
+            		puzzle={self.replay.get_puzzle().clone()}
             		num_revealed={self.replay.get_num_revealed()}
-            		last_clear={self.action_handler.last_zone_clear.clone()}
+            		last_zone_clear={self.action_handler.last_zone_clear}
 	      			top_left={{ html! {
 						<ButtonComponent
 							onbutton={ctx.link().batch_callback(
@@ -226,7 +225,7 @@ impl Component for PlayInterface {
         }
     }
 
-       fn update(&mut self, ctx: &Context<Self>,
+       fn update(&mut self, _ctx: &Context<Self>,
     		msg: Msg) -> bool {
     	let user_prefs = UserPrefs::get();
     	let key_bindings = &user_prefs.key_bindings;
@@ -265,20 +264,22 @@ impl Component for PlayInterface {
 					self.replay.undo();
 				}
 				self.replay.revert();
-				let history = ctx.link().history()
-					.expect("should be a history");
-				history.push(Route::ConfigGame {
-					game: self.replay.get_game().clone(),
-				});
+				
+				let window = web_sys::window()
+					.expect("should be a window");
+				let url = format!{"/config/{}", self.replay.get_game()};
+				window.open_with_url_and_target(
+					&url, "_blank")
+					.expect("should be able to open url");
 				return false;
-    		}
+			}
     	};
     	if let InputEvent::Button(ButtonEvent::Release(
     		PlayButton::Edit)) = event {
 			self.replay.revert();
 			let mut game = self.replay.get_game().clone();
 			let mut queue = VecDeque::new();
-			while let Ok(_) = self.replay.redo() {
+			while self.replay.redo(&mut |_| ()) {
 				if *self.replay.get_game() == game {
 					self.replay.undo();
 					break;

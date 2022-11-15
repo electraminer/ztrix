@@ -8,4 +8,5 @@ pub mod replay;
 
 pub mod serialize;
 
+pub mod puzzle;
 pub mod condition;

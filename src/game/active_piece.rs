@@ -69,16 +69,16 @@ impl ActivePiece {
 	}
 
 	pub fn try_rotate(&mut self, board: &Board,
-			rot: Rotation) -> bool {
+			rot: Rotation) -> Option<usize> {
 		let kicks = self.piece_type.get_kicks(self.rot, rot);
 		self.rot = self.rot + rot;
-		for kick in kicks {
+		for (i, kick) in kicks.into_iter().enumerate() {
 			if self.try_move(board, kick) {
-				return true;
+				return Some(i);
 			}
 		}
 		self.rot = self.rot - rot;
-		return false;
+		None
 	}
 
 	pub fn get_ghost(&self, board: &Board) -> ActivePiece {

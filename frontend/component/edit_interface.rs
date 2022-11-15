@@ -17,6 +17,7 @@ use component::queue::QueueButton;
 use component::board::BoardMouseEvent;
 use crate::component::game::GameComponent;
 use crate::component::router::Route;
+use ztrix::puzzle::Puzzle;
 
 use yew::prelude::*;
 use serde::Serialize;
@@ -141,7 +142,7 @@ impl Component for EditInterface {
         		onkey={ctx.link().callback(
         			|e: ButtonEvent<String>|
         				Msg::KeyButton(e))}>
-	      		<GameComponent game={self.game.clone()}
+	      		<GameComponent puzzle={Puzzle::new(self.game.clone())}
 	      			onboardmouse={ctx.link().callback(
 						move |e: BoardMouseEvent|
 							Msg::Draw(e))}
