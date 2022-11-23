@@ -188,10 +188,6 @@ impl Component for PlayInterface {
 		        		</ButtonComponent>
 	      				}}}
 		        	bottom_left={{html! { <>
-		        		<p><strong>{"FRAME"}</strong></p>
-		        		<p><strong>
-		        			{self.replay.get_frame()}
-		        		</strong></p>
 		        		{button_bindings.left_buttons
 			            	.iter().map(|b| {
 			            		let button = b.clone();

@@ -1,4 +1,11 @@
+use crate::condition::all_clear::AllClearType;
 use crate::condition::event::Conditions;
+use crate::condition::event::EventConditions;
+use crate::condition::event::ReqOrMin;
+use crate::condition::event::ScoreTarget;
+use crate::condition::spin::SpinConditions;
+use crate::condition::spin::SpinHandler;
+use crate::condition::spin::SpinScorer;
 use crate::game::Action;
 use crate::game::Game;
 use crate::game::game::Event;
@@ -7,18 +14,47 @@ use crate::replay::Info;
 #[derive(Hash, Eq, PartialEq, Clone)]
 pub struct Puzzle {
     game: Game,
-    win_conditions: Conditions,
-    end_conditions: Conditions,
+    pub win_conditions: Conditions,
+    pub end_conditions: Conditions,
     pub won: bool,
     pub over: bool,
 }
 
 impl Puzzle {
     pub fn new(game: Game) -> Self {
+        // TEMPORARY PUZZLE TESTING HERE
         Self {
             game: game,
-            win_conditions: Conditions{ conditions: vec![] },
-            end_conditions: Conditions{ conditions: vec![] },
+            win_conditions: Conditions{ conditions: vec![
+                EventConditions::TSpinContext(SpinHandler::new(None), vec![
+                    SpinConditions::Condition(
+                        ScoreTarget{score: 0, target: 20},
+                        SpinScorer::LineClear{
+                            req_lines: ReqOrMin::Req(2),
+                            req_piece: Some(crate::game::PieceType::T),
+                            req_all_clear: AllClearType::NONE,
+                            req_spin: Some(None),
+                            req_hard: None,
+                            negate: false,
+                        }
+                    )
+                ])
+            ] },
+            end_conditions: Conditions{ conditions: vec![
+                EventConditions::TSpinContext(SpinHandler::new(None), vec![
+                    SpinConditions::Condition(
+                        ScoreTarget{score: 0, target: 1},
+                        SpinScorer::LineClear{
+                            req_lines: ReqOrMin::Req(2),
+                            req_piece: Some(crate::game::PieceType::T),
+                            req_all_clear: AllClearType::NONE,
+                            req_spin: Some(None),
+                            req_hard: None,
+                            negate: true,
+                        }
+                    )
+                ])
+            ] },
             won: false,
             over: false,
         }

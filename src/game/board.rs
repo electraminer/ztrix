@@ -45,11 +45,14 @@ impl Board {
 		for y in 0..26 {
 			if self.matrix[y].iter().all(|m|
 					matches!(m, Some(_))) {
+				if !self.matrix[y].iter().all(|m|
+					matches!(m, Some(Mino::Gray))) {
+					cleared += 1;
+				}
 				for i in (0..y).rev() {
 					self.matrix[i+1] = self.matrix[i];
 				}
 				self.matrix[0] = [Some(Mino::Gray); 10];
-				cleared += 1;
 			}
 		}
 		cleared

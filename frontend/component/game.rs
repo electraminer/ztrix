@@ -5,6 +5,7 @@ use component::queue::QueueComponent;
 use component::queue::QueueButton;
 use component::board::BoardComponent;
 use component::board::BoardMouseEvent;
+use component::conditions::ConditionsComponent;
 
 use ztrix::puzzle::Puzzle;
 use ztrix::game::Mino;
@@ -58,6 +59,9 @@ pub fn game_component(props: &Props) -> Html {
 								GameButton::Hold))}/>
 				</div>
 				<div class="bottom-left">
+					<ConditionsComponent
+						win_conditions={props.puzzle.win_conditions.clone()}
+						end_conditions={props.puzzle.end_conditions.clone()}/>
         			{props.bottom_left.clone()}
         		</div>
             </div>

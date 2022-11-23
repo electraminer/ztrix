@@ -3,6 +3,7 @@ use core::ops::Add;
 use crate::condition::all_clear::AllClearType;
 use crate::condition::chain::ChainConditions;
 use crate::condition::chain::ChainHandler;
+use crate::condition::event::ReqOrMin;
 use crate::condition::event::ScoreTarget;
 use crate::game::PieceType;
 use crate::game::game::Event;
@@ -19,6 +20,7 @@ pub enum SpinType {
 pub struct SpinClear<'a> {
     pub clear: &'a LineClear,
     pub spin: Option<SpinType>,
+    pub hard: bool,
 }
 
 #[derive(Hash, Eq, PartialEq, Clone)]
@@ -50,11 +52,10 @@ impl SpinHandler {
     pub fn handle_t_spin<'a>(&mut self, event: &'a Event) -> Option<SpinEvent<'a>> {
         let kick = self.handle_last_kick(event);
         match event {
-            Event::LineClear(clear) => Some(SpinEvent::LineClear(SpinClear {
-                clear: clear,
-                spin: kick.and_then(|k| {
-                    let main_corners = [Vector::new(-1, 1),
-                        Vector::new(1, 1)].iter()
+            Event::LineClear(clear) => {
+                let spin = kick.and_then(|k| {
+                    let main_corners = [Vector::new(-1, -1),
+                        Vector::new(1, -1)].iter()
                         .map(|v| clear.active.pos.add(v.rotate(clear.active.rot)))
                         .filter(|p| clear.board[*p] != None).count();
                     let mini_corners = [Vector::new(-1, 1),
@@ -65,13 +66,18 @@ impl SpinHandler {
                     if corners < 3 {
                         None
                     } else {
-                        Some(match main_corners < 2 && k != 4 {
+                        Some(match main_corners == 1 && k != 4 {
                             false => SpinType::Full,
                             true => SpinType::Mini,
                         })
                     }
-                }),
-            })),
+                });
+                Some(SpinEvent::LineClear(SpinClear {
+                    clear: clear,
+                    spin: spin.clone(),
+                    hard: clear.lines >= 4 || spin != None,
+                }))
+            }
             Event::ZoneClear(lines) => Some(SpinEvent::ZoneClear(*lines)),
             _ => None,
         }
@@ -80,9 +86,8 @@ impl SpinHandler {
     pub fn handle_all_spin<'a>(&mut self, event: &'a Event) -> Option<SpinEvent<'a>> {
         let kick = self.handle_last_kick(event);
         match event {
-            Event::LineClear(clear) => Some(SpinEvent::LineClear(SpinClear {
-                clear: clear,
-                spin: kick.and_then(|k| {
+            Event::LineClear(clear) => {
+                let spin = kick.and_then(|k| {
                     if [Vector::ONE_UP, Vector::ONE_DOWN,
                         Vector::ONE_LEFT, Vector::ONE_RIGHT].iter()
                         .any(|v| clear.active.clone().try_move(&clear.board, *v)) {
@@ -99,8 +104,13 @@ impl SpinHandler {
                             true => SpinType::Mini,
                         })
                     }
-                }),
-            })),
+                });
+                Some(SpinEvent::LineClear(SpinClear {
+                    clear: clear,
+                    spin: spin.clone(),
+                    hard: clear.lines >= 4 || spin != None,
+                }))
+            }
             Event::ZoneClear(lines) => Some(SpinEvent::ZoneClear(*lines)),
             _ => None,
         }
@@ -149,14 +159,15 @@ impl SpinConditions {
 pub enum SpinScorer {
     // Count occurrences, increasing by only one
     LineClear {
-        required_lines: Option<usize>,
-        required_piece: Option<PieceType>,
-        required_all_clear: AllClearType,
-        required_spin: Option<Option<SpinType>>,
+        req_lines: ReqOrMin,
+        req_piece: Option<PieceType>,
+        req_all_clear: AllClearType,
+        req_spin: Option<Option<SpinType>>,
+        req_hard: Option<bool>,
         negate: bool,
     },
     ZoneClear {
-        min_lines: usize,
+        req_lines: ReqOrMin,
     },
     // Count totals, sometimes increasing by more than one
     LinesCleared,
@@ -165,20 +176,21 @@ pub enum SpinScorer {
 impl SpinScorer {
     fn score_event(&self, event: &SpinEvent) -> usize {
         match self {
-            Self::LineClear{required_lines, required_piece, required_all_clear,
-                required_spin,
-                negate} => if let SpinEvent::LineClear(spin_clear) = event {
+            Self::LineClear{req_lines, req_piece, req_all_clear,
+                req_spin, req_hard, negate} =>
+                if let SpinEvent::LineClear(spin_clear) = event {
                     let clear = spin_clear.clear;
                     let is_clear = clear.lines > 0;
-                    let reqs_met = required_lines.map_or(is_clear,
-                        |r| clear.lines == r)
-                        && required_piece.map_or(true,
+                    let reqs_met = req_lines.matches(clear.lines)
+                        && req_piece.map_or(true,
                         |r| clear.active.get_type() == r)
                         && AllClearType::from_line_clear(&clear)
-                            .fits_req(&required_all_clear)
-                        && required_spin.as_ref().map_or(true,
+                            .fits_req(&req_all_clear)
+                        && req_spin.as_ref().map_or(true,
                             |r| spin_clear.spin.as_ref().map_or(false,
-                                |t| r.as_ref().map_or(false, |r| r == t)));
+                                |t| r.as_ref().map_or(true, |r| r == t)))
+                        && req_hard.map_or(true,
+                            |r| spin_clear.hard == r);
                     if match negate {
                         false => reqs_met,
                         true => !reqs_met && is_clear,
@@ -186,9 +198,9 @@ impl SpinScorer {
                         return 1;
                     }
                 }
-            Self::ZoneClear {min_lines} =>
+            Self::ZoneClear {req_lines} =>
                 if let SpinEvent::ZoneClear(lines) = *event {
-                    if lines >= *min_lines {
+                    if req_lines.matches(lines) {
                         return 1;
                     }
                 }

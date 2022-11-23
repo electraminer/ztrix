@@ -8,6 +8,8 @@ pub mod queue;
 
 pub mod board;
 
+pub mod conditions;
+
 pub mod game;
 
 pub mod play_interface;

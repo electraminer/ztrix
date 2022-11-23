@@ -65,17 +65,32 @@ impl EventConditions {
     }
 }
 
+#[derive(Hash, Eq, PartialEq, Copy, Clone)]
+pub enum ReqOrMin {
+    Req(usize),
+    Min(usize),
+}
+
+impl ReqOrMin {
+    pub fn matches(self, value: usize) -> bool {
+        match self {
+            Self::Req(req) => value == req,
+            Self::Min(min) => value >= min,
+        }
+    }
+}
+
 #[derive(Hash, Eq, PartialEq, Clone)]
 pub enum EventScorer {
     // Count occurrences, increasing by only one
     LineClear {
-        required_lines: Option<usize>,
-        required_piece: Option<PieceType>,
-        required_all_clear: AllClearType,
+        req_lines: ReqOrMin,
+        req_piece: Option<PieceType>,
+        req_all_clear: AllClearType,
         negate: bool,
     },
     ZoneClear {
-        min_lines: usize,
+        req_lines: ReqOrMin,
     },
     // Count totals, sometimes increasing by more than one
     LinesCleared,
@@ -84,15 +99,14 @@ pub enum EventScorer {
 impl EventScorer {
     fn score_event(&self, event: &Event) -> usize {
         match self {
-            Self::LineClear{required_lines, required_piece, required_all_clear,
+            Self::LineClear{req_lines, req_piece, req_all_clear,
                 negate} => if let Event::LineClear(clear) = event {
                     let is_clear = clear.lines > 0;
-                    let reqs_met = required_lines.map_or(is_clear,
-                        |r| clear.lines == r)
-                        && required_piece.map_or(true,
+                    let reqs_met = req_lines.matches(clear.lines)
+                        && req_piece.map_or(true,
                         |r| clear.active.get_type() == r)
                         && AllClearType::from_line_clear(&clear)
-                            .fits_req(&required_all_clear);
+                            .fits_req(&req_all_clear);
                     if match negate {
                         false => reqs_met,
                         true => !reqs_met && is_clear,
@@ -100,9 +114,9 @@ impl EventScorer {
                         return 1;
                     }
                 }
-            Self::ZoneClear {min_lines} =>
+            Self::ZoneClear {req_lines} =>
                 if let Event::ZoneClear(lines) = event {
-                    if lines >= min_lines {
+                    if req_lines.matches(*lines) {
                         return 1;
                     }
                 }

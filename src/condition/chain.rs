@@ -1,4 +1,5 @@
 use crate::condition::all_clear::AllClearType;
+use crate::condition::event::ReqOrMin;
 use crate::condition::event::ScoreTarget;
 use crate::condition::spin::SpinClear;
 use crate::condition::spin::SpinEvent;
@@ -8,7 +9,6 @@ use crate::game::PieceType;
 #[derive(Hash, Eq, PartialEq, Clone)]
 pub struct ChainClear<'a> {
     pub clear: &'a SpinClear<'a>,
-    pub hard: bool,
     pub b2b: bool,
     pub combo: usize,
 }
@@ -21,8 +21,8 @@ pub enum ChainEvent<'a> {
 
 #[derive(Hash, Eq, PartialEq, Clone)]
 pub struct ChainHandler {
-    b2b: bool,
-    combo: usize,
+    pub b2b: bool,
+    pub combo: usize,
 }
 
 impl ChainHandler {
@@ -36,20 +36,17 @@ impl ChainHandler {
             SpinEvent::LineClear(spin_clear) => {
                 if spin_clear.clear.lines > 0 {
                     self.combo += 1;
-                    let hard = spin_clear.clear.lines >= 4 || spin_clear.spin != None;
                     let b2b = self.b2b;
-                    self.b2b = hard;
+                    self.b2b = spin_clear.hard;
                     Some(ChainEvent::LineClear(ChainClear {
                         clear: spin_clear,
-                        hard,
-                        b2b,
+                        b2b: b2b && self.b2b,
                         combo: self.combo,
                     }))
                 } else {
                     self.combo = 0;
                     Some(ChainEvent::LineClear(ChainClear {
                         clear: spin_clear,
-                        hard: false,
                         b2b: false,
                         combo: self.combo,
                     }))
@@ -101,17 +98,17 @@ impl ChainConditions {
 pub enum ChainScorer {
     // Count occurrences, increasing by only one
     LineClear {
-        required_lines: Option<usize>,
-        required_piece: Option<PieceType>,
-        required_all_clear: AllClearType,
-        required_spin: Option<Option<SpinType>>,
-        required_hard: Option<bool>,
-        required_b2b: Option<bool>,
-        required_combo: Option<usize>,
+        req_lines: ReqOrMin,
+        req_piece: Option<PieceType>,
+        req_all_clear: AllClearType,
+        req_spin: Option<Option<SpinType>>,
+        req_hard: Option<bool>,
+        req_b2b: Option<bool>,
+        req_combo: ReqOrMin,
         negate: bool,
     },
     ZoneClear {
-        min_lines: usize,
+        req_lines: ReqOrMin,
     },
     // Count totals, sometimes increasing by more than one
     LinesCleared,
@@ -124,27 +121,25 @@ pub enum ChainScorer {
 impl ChainScorer {
     fn score_event(&self, event: &ChainEvent) -> usize {
         match self {
-            Self::LineClear{required_lines, required_piece, required_all_clear,
-                required_spin, required_hard, required_b2b, required_combo,
-                negate} => if let ChainEvent::LineClear(chain_clear) = event {
+            Self::LineClear{req_lines, req_piece, req_all_clear,
+                req_spin, req_hard, req_b2b, req_combo, negate} =>
+                if let ChainEvent::LineClear(chain_clear) = event {
                     let spin_clear = chain_clear.clear;
                     let clear = spin_clear.clear;
                     let is_clear = clear.lines > 0;
-                    let reqs_met = required_lines.map_or(is_clear,
-                        |r| clear.lines == r)
-                        && required_piece.map_or(true,
+                    let reqs_met = req_lines.matches(clear.lines)
+                        && req_piece.map_or(true,
                         |r| clear.active.get_type() == r)
                         && AllClearType::from_line_clear(&clear)
-                            .fits_req(&required_all_clear)
-                        && required_spin.as_ref().map_or(true,
+                            .fits_req(&req_all_clear)
+                        && req_spin.as_ref().map_or(true,
                         |r| spin_clear.spin.as_ref().map_or(false,
                             |t| r.as_ref().map_or(false, |r| r == t)))
-                        && required_hard.map_or(true,
-                        |r| chain_clear.hard == r)
-                        && required_b2b.map_or(true,
+                        && req_hard.map_or(true,
+                        |r| spin_clear.hard == r)
+                        && req_b2b.map_or(true,
                         |r| chain_clear.b2b == r)
-                        && required_combo.map_or(true,
-                        |r| chain_clear.combo == r);
+                        && req_combo.matches(chain_clear.combo);
                     if match negate {
                         false => reqs_met,
                         true => !reqs_met && is_clear,
@@ -152,9 +147,9 @@ impl ChainScorer {
                         return 1;
                     }
                 }
-            Self::ZoneClear {min_lines} =>
+            Self::ZoneClear {req_lines} =>
                 if let ChainEvent::ZoneClear(lines) = event {
-                    if lines >= min_lines {
+                    if req_lines.matches(*lines) {
                         return 1;
                     }
                 }
@@ -187,17 +182,17 @@ impl ChainScorer {
                         };
                         let combo_damage = if clear.in_zone && *count_zone_damage {
                             match chain_clear.combo {
-                                0..=1 => 0,
-                                2..=3 => 1,
-                                4..=9 => 2,
+                                0..=2 => 0,
+                                3..=4 => 1,
+                                5..=10 => 2,
                                 _ => 3,
                             }
                         } else {
                             match chain_clear.combo {
-                                0..=1 => 0,
-                                2..=3 => 1,
-                                4..=6 => 2,
-                                7..=12 => 3,
+                                0..=2 => 0,
+                                3..=4 => 1,
+                                5..=7 => 2,
+                                8..=13 => 3,
                                 _ => 4,
                             }
                         };
@@ -239,12 +234,12 @@ impl ChainScorer {
                         damage += 1;
                     };
                     let combo_damage = match chain_clear.combo {
-                        0..=1 => 0,
-                        2..=3 => 1,
-                        4 => 2,
-                        5 => 3,
-                        6 => 4,
-                        7 => 3,
+                        0..=2 => 0,
+                        3..=4 => 1,
+                        5 => 2,
+                        6 => 3,
+                        7 => 4,
+                        8 => 3,
                         _ => 2,
                     };
                     return damage.max(combo_damage);

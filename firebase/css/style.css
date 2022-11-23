@@ -74,6 +74,12 @@ html, body, #content {
 .board-column.puzzle-complete {
 	outline-style: solid;
 	outline-width: thick;
+	outline-color: #CA0;
+}
+
+.board-column.puzzle-complete.game-over {
+	outline-style: solid;
+	outline-width: thick;
 	outline-color: #1A1;
 }
 
@@ -407,13 +413,11 @@ button.active>.copied {
 
 svg text{
 	text-anchor: middle;
-	dominant-baseline: middle;
 	line-height: 1;
 	font-family: "Calibri", sans-serif;
 }
 
 :not(input) {
-   user-drag: none;  
    user-select: none;
 }
 
@@ -433,4 +437,20 @@ p, img, svg {
 	right: 1%;
 	top: 1%;
 	width: 10%;
+}
+
+.win-conditions strong {
+	color: #1A1;
+}
+
+.end-conditions strong {
+	color: #C12;
+}
+
+.win-conditions .completed, .end-conditions .completed {
+	color: #CA0;
+}
+
+.win-conditions p, .end-conditions p {
+	line-height: 100%;
 }
