@@ -28,6 +28,6 @@ impl AllClearType {
 
     pub fn fits_req(&self, req: &AllClearType) -> bool {
         (!req.is_gray_clear || self.is_gray_clear)
-        && (!req.is_color_clear || self.is_gray_clear)
+        && (!req.is_color_clear || self.is_color_clear)
     }
 }
