@@ -72,24 +72,28 @@ impl SpinHandler {
         let kick = self.handle_last_kick(event);
         match event {
             Event::LineClear(clear) => {
-                let spin = kick.and_then(|k| {
-                    let back_corners = [Vector::new(-1, -1),
-                        Vector::new(1, -1)].iter()
-                        .map(|v| clear.active.pos.add(v.rotate(clear.active.rot)))
-                        .filter(|p| clear.board[*p] != None).count();
-                    let front_corners = [Vector::new(-1, 1),
-                        Vector::new(1, 1)].iter()
-                        .map(|v| clear.active.pos.add(v.rotate(clear.active.rot)))
-                        .filter(|p| clear.board[*p] != None).count();
-                    if back_corners + front_corners < 3 {
-                        None
-                    } else {
-                        Some(match front_corners == 2 || k == 4 {
-                            true => SpinType::Full,
-                            false => SpinType::Mini,
-                        })
-                    }
-                });
+                let spin = if clear.active.piece_type == PieceType::T {
+                    kick.and_then(|k| {
+                        let back_corners = [Vector::new(-1, -1),
+                            Vector::new(1, -1)].iter()
+                            .map(|v| clear.active.pos.add(v.rotate(clear.active.rot)))
+                            .filter(|p| clear.board[*p] != None).count();
+                        let front_corners = [Vector::new(-1, 1),
+                            Vector::new(1, 1)].iter()
+                            .map(|v| clear.active.pos.add(v.rotate(clear.active.rot)))
+                            .filter(|p| clear.board[*p] != None).count();
+                        if back_corners + front_corners < 3 {
+                            None
+                        } else {
+                            Some(match front_corners == 2 || k == 4 {
+                                true => SpinType::Full,
+                                false => SpinType::Mini,
+                            })
+                        }
+                    })
+                } else {
+                    None
+                };
                 Some(SpinEvent::LineClear(SpinClear {
                     clear: clear,
                     spin: spin.clone(),
