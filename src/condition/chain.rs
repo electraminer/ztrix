@@ -5,6 +5,8 @@ use crate::condition::spin::SpinClear;
 use crate::condition::spin::SpinEvent;
 use crate::condition::spin::SpinType;
 use crate::game::PieceType;
+use crate::serialize::DeserializeError;
+use crate::serialize::SerializeUrlSafe;
 
 #[derive(Hash, Eq, PartialEq, Clone)]
 pub struct ChainClear<'a> {
@@ -74,6 +76,22 @@ impl ChainHandler {
     }
 }
 
+impl SerializeUrlSafe for ChainHandler {
+    fn serialize(&self) -> String {
+        format! {"{}{}",
+            self.b2b.serialize(),
+            self.combo.serialize(),
+        }
+    }
+
+    fn deserialize(input: &mut crate::serialize::DeserializeInput) -> Result<Self, crate::serialize::DeserializeError> {
+        Ok(Self {
+            b2b: bool::deserialize(input)?,
+            combo: usize::deserialize(input)?,
+        })
+    }
+}
+
 #[derive(Hash, Eq, PartialEq, Clone)]
 pub enum ChainConditions {
     Condition(ScoreTarget, ChainScorer),
@@ -91,6 +109,23 @@ impl ChainConditions {
         match self {
             Self::Condition(target, _) => vec![target.score >= target.target],
         }
+    }
+}
+
+impl SerializeUrlSafe for ChainConditions {
+    fn serialize(&self) -> String {
+        match self {
+            Self::Condition(target, scorer) => 
+                format! {"C{}{}", target.serialize(), scorer.serialize()},
+        }
+    }
+
+    fn deserialize(input: &mut crate::serialize::DeserializeInput) -> Result<Self, crate::serialize::DeserializeError> {
+        Ok(match input.next()? {
+            'C' => Self::Condition(ScoreTarget::deserialize(input)?, ChainScorer::deserialize(input)?),
+            _ => return Err(DeserializeError::new("ChainConditions type should be represented by C."),
+            )
+        })
     }
 }
 
@@ -247,5 +282,42 @@ impl ChainScorer {
             }
         }
         0
+    }
+}
+
+impl SerializeUrlSafe for ChainScorer {
+    fn serialize(&self) -> String {
+        match self {
+            Self::LineClear { req_lines, req_piece, req_all_clear,
+                req_spin, req_hard,
+                req_b2b, req_combo, negate } => format! {"C{}{}{}{}{}{}{}{}",
+                req_lines.serialize(), req_piece.serialize(), req_all_clear.serialize(),
+                req_spin.serialize(), req_hard.serialize(),
+                req_b2b.serialize(), req_combo.serialize(), negate.serialize()},
+            Self::ZoneClear { req_lines } => format!("Z{}", req_lines.serialize()),
+            Self::LinesCleared => "L".to_owned(),
+            Self::DamageDealt { count_zone_damage } => format! {"D{}", count_zone_damage.serialize()},
+            Self::JeapordyDealt => "J".to_owned(),
+        }
+    }
+
+    fn deserialize(input: &mut crate::serialize::DeserializeInput) -> Result<Self, crate::serialize::DeserializeError> {
+        Ok(match input.next()? {
+            'C' => Self::LineClear {
+                req_lines: ReqOrMin::deserialize(input)?,
+                req_piece: Option::deserialize(input)?,
+                req_all_clear: AllClearType::deserialize(input)?,
+                req_spin: Option::deserialize(input)?,
+                req_hard: Option::deserialize(input)?,
+                req_b2b: Option::deserialize(input)?,
+                req_combo: ReqOrMin::deserialize(input)?,
+                negate: bool::deserialize(input)?,
+            },
+            'Z' => Self::ZoneClear { req_lines: ReqOrMin::deserialize(input)? },
+            'L' => Self::LinesCleared,
+            'D' => Self::DamageDealt { count_zone_damage: bool::deserialize(input)? },
+            'J' => Self::JeapordyDealt,
+            _ => return Err(DeserializeError::new("ChainScorer type should be represented by C, Z, L, D, or J.")),
+        })
     }
 }

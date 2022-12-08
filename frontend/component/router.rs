@@ -4,6 +4,7 @@ use component::play_interface::PlayInterface;
 use ztrix::game::Game;
 use yew::prelude::*;
 use yew_router::prelude::*;
+use ztrix::puzzle::Puzzle;
 
 use crate::component::edit_interface::EditInterface;
 
@@ -19,48 +20,55 @@ pub enum Route {
     Game,
     #[at("/game/:game")]
     GameGame { game: Game },
+
+    #[at("/puzzle")]
+    Puzzle,
+    #[at("/puzzle/:puzzle")]
+    PuzzlePuzzle { puzzle: Puzzle },
+
     #[at("/edit")]
     Edit,
-    #[at("/edit/:game")]
-    EditGame { game: Game },
+    #[at("/edit/:puzzle")]
+    EditPuzzle { puzzle: Puzzle },
+
     #[at("/config")]
     Config,
-    #[at("/config/:game")]
-    ConfigGame { game: Game },
     #[at("/settings")]
     Settings,
     #[at("/controls")]
     Controls,
+
     #[at("/about")]
     About,
-    #[at("/about/:game")]
-    AboutGame{  game: Game },
     #[at("/help")]
     Help,
 }
 
 fn switch(route: &Route) -> Html {
     match route {
-    	Route::Home | Route::Play | Route::Game =>html! {
+    	Route::Home | Route::Play | Route::Game | Route::Puzzle => html! {
         	<PlayInterface/>
         },
         Route::PlayGame { game } => html! {
-            <PlayInterface game={game.clone()}/>
+            <PlayInterface puzzle={Puzzle::new(game.clone())}/>
         },
         Route::GameGame { game } => html! {
-            <PlayInterface game={game.clone()}/>
+            <PlayInterface puzzle={Puzzle::new(game.clone())}/>
         },
+
+        Route::PuzzlePuzzle { puzzle } => html! {
+            <PlayInterface puzzle={puzzle.clone()}/>
+        },
+
         Route::Edit => html! {
             <EditInterface/>
         },
-        Route::EditGame { game } => html! {
-            <EditInterface game={game.clone()}/>
+        Route::EditPuzzle { puzzle } => html! {
+            <EditInterface puzzle={puzzle.clone()}/>
         },
+
         Route::Config => html! {
             <ConfigInterface/>
-        },
-        Route::ConfigGame { game } => html! {
-            <ConfigInterface game={game.clone()}/>
         },
         Route::Settings => html! {
             <ConfigInterface/>
@@ -68,11 +76,9 @@ fn switch(route: &Route) -> Html {
         Route::Controls => html! {
             <ConfigInterface/>
         },
+
         Route::About => html! {
             <AboutInterface/>
-        },
-        Route::AboutGame { game } => html! {
-            <AboutInterface game={game.clone()}/>
         },
         Route::Help => html! {
             <AboutInterface/>

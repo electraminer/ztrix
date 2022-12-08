@@ -1,4 +1,6 @@
 #![feature(array_zip)]
+#![feature(array_try_map)]
+#![feature(iter_array_chunks)]
 
 pub mod position;
 

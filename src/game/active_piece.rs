@@ -1,12 +1,11 @@
-use crate::serialize::FromChars;
+use crate::serialize::DeserializeError;
+use crate::serialize::SerializeUrlSafe;
 use crate::game::Board;
 use crate::game::Mino;
 use crate::game::PieceType;
 use crate::position::Rotation;
 use crate::position::Position;
 use crate::position::Vector;
-
-use std::fmt;
 
 #[derive(Debug, Clone, Eq, Hash, PartialEq)]
 pub struct ActivePiece {
@@ -96,22 +95,20 @@ impl ActivePiece {
 	}
 }
 
-impl fmt::Display for ActivePiece {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "{}", self.piece_type)?;
-		write!(f, "{}", self.pos)?;
-		write!(f, "{}", self.rot)
+impl SerializeUrlSafe for ActivePiece {
+	fn serialize(&self) -> String {
+		format! { "{}{}{}",
+			self.piece_type.serialize(),
+			self.pos.serialize(),
+			self.rot.serialize(),
+		}
 	}
-}
 
-impl FromChars for ActivePiece {
-	fn from_chars<I>(chars: &mut I) -> Result<Self, ()>
-	where 	I: Iterator<Item = char>,
-			Self: Sized {
-		Ok(ActivePiece {
-			piece_type: PieceType::from_chars(chars)?,
-			pos: Position::from_chars(chars)?,
-			rot: Rotation::from_chars(chars)?,
+	fn deserialize(input: &mut crate::serialize::DeserializeInput) -> Result<Self, crate::serialize::DeserializeError> {
+		Ok(Self {
+			piece_type: PieceType::deserialize(input)?,
+			pos: Position::deserialize(input)?,
+			rot: Rotation::deserialize(input)?,
 		})
 	}
 }
@@ -131,25 +128,20 @@ impl MaybeActive {
 	}
 }
 
-impl fmt::Display for MaybeActive {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+
+impl SerializeUrlSafe for MaybeActive {
+	fn serialize(&self) -> String {
 		match self {
-			MaybeActive::Active(p) => write!(f, "A{}", p),
-			MaybeActive::Inactive(p) => write!(f, "I{}", p),
+			MaybeActive::Active(piece) => format! {"A{}", piece.serialize()},
+			MaybeActive::Inactive(piece) => format! {"I{}", piece.serialize()},
 		}
 	}
-}
 
-impl FromChars for MaybeActive {
-	fn from_chars<I>(chars: &mut I) -> Result<Self, ()>
-	where 	I: Iterator<Item = char>,
-			Self: Sized {
-		Ok(match chars.next().ok_or(())? {
-			'A' => MaybeActive::Active(
-				ActivePiece::from_chars(chars)?),
-			'I' => MaybeActive::Inactive(
-				PieceType::from_chars(chars)?),
-			_ => return Err(())
+	fn deserialize(input: &mut crate::serialize::DeserializeInput) -> Result<Self, crate::serialize::DeserializeError> {
+		Ok(match input.next()? {
+			'A' => MaybeActive::Active(ActivePiece::deserialize(input)?),
+			'I' => MaybeActive::Inactive(PieceType::deserialize(input)?),
+			_ => return Err(DeserializeError::new("MaybeActive's type should be represented by A or I.")),
 		})
 	}
 }

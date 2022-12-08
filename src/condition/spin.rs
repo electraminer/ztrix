@@ -9,11 +9,30 @@ use crate::game::PieceType;
 use crate::game::game::Event;
 use crate::game::game::LineClear;
 use crate::position::Vector;
+use crate::serialize::DeserializeError;
+use crate::serialize::SerializeUrlSafe;
 
 #[derive(Hash, Eq, PartialEq, Clone)]
 pub enum SpinType {
     Full,
     Mini,
+}
+
+impl SerializeUrlSafe for SpinType {
+	fn serialize(&self) -> String {
+		match self {
+			Self::Full => "F",
+			Self::Mini => "M",
+		}.to_owned()
+	}
+
+	fn deserialize(input: &mut crate::serialize::DeserializeInput) -> Result<Self, crate::serialize::DeserializeError> {
+		Ok(match input.next()? {
+			'F' => Self::Full,
+			'M' => Self::Mini,
+			_ => return Err(DeserializeError::new("SpinType should be represented by F or M.")),
+		})
+	}
 }
 
 #[derive(Hash, Eq, PartialEq, Clone)]
@@ -54,21 +73,20 @@ impl SpinHandler {
         match event {
             Event::LineClear(clear) => {
                 let spin = kick.and_then(|k| {
-                    let main_corners = [Vector::new(-1, -1),
+                    let back_corners = [Vector::new(-1, -1),
                         Vector::new(1, -1)].iter()
                         .map(|v| clear.active.pos.add(v.rotate(clear.active.rot)))
                         .filter(|p| clear.board[*p] != None).count();
-                    let mini_corners = [Vector::new(-1, 1),
+                    let front_corners = [Vector::new(-1, 1),
                         Vector::new(1, 1)].iter()
                         .map(|v| clear.active.pos.add(v.rotate(clear.active.rot)))
                         .filter(|p| clear.board[*p] != None).count();
-                    let corners = main_corners + mini_corners;
-                    if corners < 3 {
+                    if back_corners + front_corners < 3 {
                         None
                     } else {
-                        Some(match main_corners == 1 && k != 4 {
-                            false => SpinType::Full,
-                            true => SpinType::Mini,
+                        Some(match front_corners == 2 || k == 4 {
+                            true => SpinType::Full,
+                            false => SpinType::Mini,
                         })
                     }
                 });
@@ -117,6 +135,20 @@ impl SpinHandler {
     }
 }
 
+impl SerializeUrlSafe for SpinHandler {
+    fn serialize(&self) -> String {
+        format! {"{}",
+            self.last_kick.serialize(),
+        }
+    }
+
+    fn deserialize(input: &mut crate::serialize::DeserializeInput) -> Result<Self, crate::serialize::DeserializeError> {
+        Ok(Self {
+            last_kick: Option::deserialize(input)?,
+        })
+    }
+}
+
 #[derive(Hash, Eq, PartialEq, Clone)]
 pub enum SpinConditions {
     ChainContext(ChainHandler, Vec<ChainConditions>),
@@ -152,6 +184,29 @@ impl SpinConditions {
                 conditions.iter().flat_map(|c| c.statuses()).collect(),
             Self::Condition(target, _) => vec![target.score >= target.target],
         }
+    }
+}
+
+impl SerializeUrlSafe for SpinConditions {
+    fn serialize(&self) -> String {
+        match self {
+            Self::ChainContext(handler, conditions) =>
+                format! {"H{}{}", handler.serialize(), conditions.serialize()},
+            Self::ZoneChainContext(handler, conditions) =>
+                format! {"Z{}{}", handler.serialize(), conditions.serialize()},
+            Self::Condition(target, scorer) => 
+                format! {"C{}{}", target.serialize(), scorer.serialize()},
+        }
+    }
+
+    fn deserialize(input: &mut crate::serialize::DeserializeInput) -> Result<Self, crate::serialize::DeserializeError> {
+        Ok(match input.next()? {
+            'H' => Self::ChainContext(ChainHandler::deserialize(input)?, Vec::deserialize(input)?),
+            'Z' => Self::ZoneChainContext(ChainHandler::deserialize(input)?, Vec::deserialize(input)?),
+            'C' => Self::Condition(ScoreTarget::deserialize(input)?, SpinScorer::deserialize(input)?),
+            _ => return Err(DeserializeError::new("SpinConditions type should be represented by H, Z, or C."),
+            )
+        })
     }
 }
 
@@ -210,5 +265,34 @@ impl SpinScorer {
                 }
         }
         0
+    }
+}
+
+impl SerializeUrlSafe for SpinScorer {
+    fn serialize(&self) -> String {
+        match self {
+            Self::LineClear { req_lines, req_piece, req_all_clear,
+                req_spin, req_hard, negate } => format! {"C{}{}{}{}{}{}",
+                req_lines.serialize(), req_piece.serialize(), req_all_clear.serialize(),
+                req_spin.serialize(), req_hard.serialize(), negate.serialize()},
+            Self::ZoneClear { req_lines } => format!("Z{}", req_lines.serialize()),
+            Self::LinesCleared => "L".to_owned(),
+        }
+    }
+
+    fn deserialize(input: &mut crate::serialize::DeserializeInput) -> Result<Self, crate::serialize::DeserializeError> {
+        Ok(match input.next()? {
+            'C' => Self::LineClear {
+                req_lines: ReqOrMin::deserialize(input)?,
+                req_piece: Option::deserialize(input)?,
+                req_all_clear: AllClearType::deserialize(input)?,
+                req_spin: Option::deserialize(input)?,
+                req_hard: Option::deserialize(input)?,
+                negate: bool::deserialize(input)?,
+            },
+            'Z' => Self::ZoneClear { req_lines: ReqOrMin::deserialize(input)? },
+            'L' => Self::LinesCleared,
+            _ => return Err(DeserializeError::new("SpinScorer type should be represented by C, Z, or L.")),
+        })
     }
 }

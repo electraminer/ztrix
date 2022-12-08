@@ -3,11 +3,62 @@ use crate::condition::spin::SpinConditions;
 use crate::condition::spin::SpinHandler;
 use crate::game::PieceType;
 use crate::game::game::Event;
+use crate::serialize::DeserializeError;
+use crate::serialize::SerializeUrlSafe;
 
 #[derive(Hash, Eq, PartialEq, Clone)]
 pub struct ScoreTarget {
     pub score: usize,
     pub target: usize,
+}
+
+impl SerializeUrlSafe for ScoreTarget {
+    fn serialize(&self) -> String {
+        format! {"{}{}",
+            self.score.serialize(),
+            self.target.serialize(),
+        }
+    }
+
+    fn deserialize(input: &mut crate::serialize::DeserializeInput) -> Result<Self, crate::serialize::DeserializeError> {
+        Ok(Self {
+            score: usize::deserialize(input)?,
+            target: usize::deserialize(input)?,
+        })
+    }
+}
+
+#[derive(Hash, Eq, PartialEq, Copy, Clone)]
+pub enum ReqOrMin {
+    Req(usize),
+    Min(usize),
+}
+
+impl ReqOrMin {
+    pub fn matches(self, value: usize) -> bool {
+        match self {
+            Self::Req(req) => value == req,
+            Self::Min(min) => value >= min,
+        }
+    }
+}
+
+impl SerializeUrlSafe for ReqOrMin {
+    fn serialize(&self) -> String {
+        match self {
+            Self::Req(req) => format! {"R{}", req.serialize()},
+            Self::Min(min) => format! {"M{}", min.serialize()},
+        }
+    }
+
+    fn deserialize(input: &mut crate::serialize::DeserializeInput) -> Result<Self, crate::serialize::DeserializeError> {
+        Ok(match input.next()? {
+            'R' => Self::Req(usize::deserialize(input)?),
+            'M' => Self::Min(usize::deserialize(input)?),
+            _ => return Err(DeserializeError::new("ReqOrMin type should be represented by R or M."),
+            )
+        })
+    }
 }
 
 #[derive(Hash, Eq, PartialEq, Clone)]
@@ -24,6 +75,16 @@ impl Conditions {
 
     pub fn statuses(&self) -> Vec<bool> {
         self.conditions.iter().flat_map(|c| c.statuses()).collect()
+    }
+}
+
+impl SerializeUrlSafe for Conditions {
+    fn serialize(&self) -> String {
+        self.conditions.serialize()
+    }
+
+    fn deserialize(input: &mut crate::serialize::DeserializeInput) -> Result<Self, crate::serialize::DeserializeError> {
+        Ok(Self { conditions: Vec::deserialize(input)? })
     }
 }
 
@@ -65,18 +126,26 @@ impl EventConditions {
     }
 }
 
-#[derive(Hash, Eq, PartialEq, Copy, Clone)]
-pub enum ReqOrMin {
-    Req(usize),
-    Min(usize),
-}
-
-impl ReqOrMin {
-    pub fn matches(self, value: usize) -> bool {
+impl SerializeUrlSafe for EventConditions {
+    fn serialize(&self) -> String {
         match self {
-            Self::Req(req) => value == req,
-            Self::Min(min) => value >= min,
+            Self::TSpinContext(handler, conditions) =>
+                format! {"T{}{}", handler.serialize(), conditions.serialize()},
+            Self::AllSpinContext(handler, conditions) =>
+                format! {"A{}{}", handler.serialize(), conditions.serialize()},
+            Self::Condition(target, scorer) => 
+                format! {"C{}{}", target.serialize(), scorer.serialize()},
         }
+    }
+
+    fn deserialize(input: &mut crate::serialize::DeserializeInput) -> Result<Self, crate::serialize::DeserializeError> {
+        Ok(match input.next()? {
+            'T' => Self::TSpinContext(SpinHandler::deserialize(input)?, Vec::deserialize(input)?),
+            'A' => Self::AllSpinContext(SpinHandler::deserialize(input)?, Vec::deserialize(input)?),
+            'C' => Self::Condition(ScoreTarget::deserialize(input)?, EventScorer::deserialize(input)?),
+            _ => return Err(DeserializeError::new("EventConditions type should be represented by T, A, or C."),
+            )
+        })
     }
 }
 
@@ -126,5 +195,30 @@ impl EventScorer {
                 }
         }
         0
+    }
+}
+
+impl SerializeUrlSafe for EventScorer {
+    fn serialize(&self) -> String {
+        match self {
+            Self::LineClear { req_lines, req_piece, req_all_clear, negate } =>
+                format! {"C{}{}{}{}", req_lines.serialize(), req_piece.serialize(), req_all_clear.serialize(), negate.serialize()},
+            Self::ZoneClear { req_lines } => format!("Z{}", req_lines.serialize()),
+            Self::LinesCleared => "L".to_owned(),
+        }
+    }
+
+    fn deserialize(input: &mut crate::serialize::DeserializeInput) -> Result<Self, crate::serialize::DeserializeError> {
+        Ok(match input.next()? {
+            'C' => Self::LineClear {
+                req_lines: ReqOrMin::deserialize(input)?,
+                req_piece: Option::deserialize(input)?,
+                req_all_clear: AllClearType::deserialize(input)?,
+                negate: bool::deserialize(input)?,
+            },
+            'Z' => Self::ZoneClear { req_lines: ReqOrMin::deserialize(input)? },
+            'L' => Self::LinesCleared,
+            _ => return Err(DeserializeError::new("EventScorer type should be represented by C, Z, or L.")),
+        })
     }
 }

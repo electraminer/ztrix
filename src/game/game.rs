@@ -1,4 +1,4 @@
-use crate::serialize::FromChars;
+//use crate::serialize::FromChars;
 use std::str::FromStr;
 use crate::game::MaybeActive;
 
@@ -14,6 +14,8 @@ use crate::serialize;
 use crate::game::Queue;
 
 use crate::game::PieceType;
+use crate::serialize::DeserializeError;
+use crate::serialize::SerializeUrlSafe;
 
 use std::fmt;
 
@@ -235,39 +237,41 @@ impl Default for Game {
 	}
 }
 
-impl fmt::Display for Game {
-
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		serialize::write_option(f, self.piece.as_ref())?;
-		write!(f, "{}", self.queue)?;
-		serialize::write_option(f, self.hold)?;
-		serialize::write_bool(f, self.has_held)?;
-		write!(f, "{}", self.board)?;
-		serialize::write_bool(f, self.in_zone)?;
-		serialize::write_bool(f, self.over)
+impl SerializeUrlSafe for Game {
+	fn serialize(&self) -> String {
+		format! { "{}{}{}{}{}{}{}",
+			self.piece.serialize(),
+			self.queue.serialize(),
+			self.hold.serialize(),
+			self.has_held.serialize(),
+			self.board.serialize(),
+			self.in_zone.serialize(),
+			self.over.serialize(),
+		}
 	}
-}
 
-impl FromChars for Game {
-	fn from_chars<I>(chars: &mut I) -> Result<Self, ()>
-	where 	I: Iterator<Item = char>,
-			Self: Sized {
-		let mut chars = chars.peekable();
+	fn deserialize(input: &mut serialize::DeserializeInput) -> Result<Self, serialize::DeserializeError> {
 		Ok(Game {
-			piece: Option::from_chars(&mut chars)?,
-			queue: Queue::from_chars(&mut chars)?,
-			hold: Option::from_chars(&mut chars)?,
-			has_held: bool::from_chars(&mut chars)?,
-			board: Board::from_chars(&mut chars)?,
-			in_zone: bool::from_chars(&mut chars)?,
-			over: bool::from_chars(&mut chars)?,
+			piece: Option::deserialize(input)?,
+			queue: Queue::deserialize(input)?,
+			hold: Option::deserialize(input)?,
+			has_held: bool::deserialize(input)?,
+			board: Board::deserialize(input)?,
+			in_zone: bool::deserialize(input)?,
+			over: bool::deserialize(input)?,
 		})
 	}
 }
 
+impl fmt::Display for Game {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.serialize())
+    }
+}
+
 impl FromStr for Game {
-	type Err = ();
-	fn from_str(string: &str) -> Result<Self, ()> {
-		Self::from_chars(&mut string.chars())
+	type Err = DeserializeError;
+	fn from_str(string: &str) -> Result<Self, DeserializeError> {
+		Self::deserialize_string(string)
 	}
 }

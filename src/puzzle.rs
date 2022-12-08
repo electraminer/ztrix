@@ -1,22 +1,17 @@
-use crate::condition::all_clear::AllClearType;
-use crate::condition::chain::ChainConditions;
-use crate::condition::chain::ChainHandler;
-use crate::condition::chain::ChainScorer;
+use std::fmt;
+use std::str::FromStr;
+
 use crate::condition::event::Conditions;
-use crate::condition::event::EventConditions;
-use crate::condition::event::EventScorer;
-use crate::condition::event::ReqOrMin;
-use crate::condition::event::ScoreTarget;
-use crate::condition::spin::SpinConditions;
-use crate::condition::spin::SpinHandler;
 use crate::game::Action;
 use crate::game::Game;
 use crate::game::game::Event;
 use crate::replay::Info;
+use crate::serialize::DeserializeError;
+use crate::serialize::SerializeUrlSafe;
 
 #[derive(Hash, Eq, PartialEq, Clone)]
 pub struct Puzzle {
-    game: Game,
+    pub game: Game,
     pub win_conditions: Conditions,
     pub end_conditions: Conditions,
     pub won: bool,
@@ -25,34 +20,10 @@ pub struct Puzzle {
 
 impl Puzzle {
     pub fn new(game: Game) -> Self {
-        // TEMPORARY PUZZLE TESTING HERE
         Self {
             game: game,
-            win_conditions: Conditions{ conditions: vec![
-                EventConditions::TSpinContext(SpinHandler::new(None), vec![
-                    SpinConditions::ZoneChainContext(ChainHandler::new(false, 0), vec![
-                        ChainConditions::Condition(
-                            ScoreTarget{score: 0, target: 0},
-                            ChainScorer::DamageDealt {count_zone_damage: true}
-                        ),
-                        ChainConditions::Condition(
-                            ScoreTarget{score: 0, target: 1},
-                            ChainScorer::ZoneClear {req_lines: ReqOrMin::Min(0)}
-                        ),
-                    ])
-                ])
-            ] },
-            end_conditions: Conditions{ conditions: vec![
-                EventConditions::Condition(
-                    ScoreTarget{score: 0, target: 1},
-                    EventScorer::LineClear { req_lines: ReqOrMin::Min(1), req_piece: None,
-                        req_all_clear: AllClearType::ALL_CLEAR, negate: false }
-                ),
-                EventConditions::Condition(
-                    ScoreTarget{score: 0, target: 1},
-                    EventScorer::ZoneClear {req_lines: ReqOrMin::Min(0)}
-                ),
-            ] },
+            win_conditions: Conditions{ conditions: Vec::new() },
+            end_conditions: Conditions{ conditions: Vec::new() },
             won: false,
             over: false,
         }
@@ -86,4 +57,39 @@ impl Default for Puzzle {
     fn default() -> Self {
         Self::new(Game::default())
     }
+}
+
+impl SerializeUrlSafe for Puzzle {
+    fn serialize(&self) -> String {
+        format! {"{}{}{}{}{}",
+            self.game.serialize(),
+            self.win_conditions.serialize(),
+            self.end_conditions.serialize(),
+            self.won.serialize(),
+            self.over.serialize(),
+        }
+    }
+
+    fn deserialize(input: &mut crate::serialize::DeserializeInput) -> Result<Self, crate::serialize::DeserializeError> {
+        Ok(Self {
+            game: Game::deserialize(input)?,
+            win_conditions: Conditions::deserialize(input)?,
+            end_conditions: Conditions::deserialize(input)?,
+            won: bool::deserialize(input)?,
+            over: bool::deserialize(input)?,
+        })
+    }
+}
+
+impl fmt::Display for Puzzle {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.serialize())
+    }
+}
+
+impl FromStr for Puzzle {
+	type Err = DeserializeError;
+	fn from_str(string: &str) -> Result<Self, DeserializeError> {
+		Self::deserialize_string(string)
+	}
 }

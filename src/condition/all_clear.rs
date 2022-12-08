@@ -1,5 +1,6 @@
 use crate::game::Mino;
 use crate::game::game::LineClear;
+use crate::serialize::{SerializeUrlSafe, DeserializeError};
 
 #[derive(Hash, Eq, PartialEq, Clone)]
 pub struct AllClearType {
@@ -30,4 +31,25 @@ impl AllClearType {
         (!req.is_gray_clear || self.is_gray_clear)
         && (!req.is_color_clear || self.is_color_clear)
     }
+}
+
+impl SerializeUrlSafe for AllClearType {
+	fn serialize(&self) -> String {
+		match self {
+			&Self::NONE => "_",
+			&Self::GRAY_CLEAR => "G",
+			&Self::COLOR_CLEAR => "C",
+			&Self::ALL_CLEAR => "A",
+		}.to_owned()
+	}
+
+	fn deserialize(input: &mut crate::serialize::DeserializeInput) -> Result<Self, crate::serialize::DeserializeError> {
+		Ok(match input.next()? {
+			'_' => Self::NONE,
+			'C' => Self::GRAY_CLEAR,
+			'G' => Self::COLOR_CLEAR,
+			'A' => Self::ALL_CLEAR,
+			_ => return Err(DeserializeError::new("AllClearType should be represented by _, C, G, or A")),
+		})
+	}
 }
