@@ -1,4 +1,5 @@
 use controller::input_handler::ButtonEvent;
+use ztrix::serialize::SerializeUrlSafe;
 use crate::component::button::ButtonComponent;
 use crate::component::piece_box::PieceBoxComponent;
 
@@ -26,7 +27,7 @@ pub struct Props {
 #[function_component(QueueComponent)]
 pub fn queue(props: &Props) -> Html {
 	let bag_str: String = props.queue.rando.options()
-		.map(|p| format!{"{}", p}).collect();
+		.map(|p| p.serialize()).collect();
 	let fill = props.queue.fill();
 	let length = props.queue.length;
 	let num_fixed = if props.num_speculative < length {
@@ -37,7 +38,7 @@ pub fn queue(props: &Props) -> Html {
 	let mut upcoming: String = (length..fill.clamp(
 			length, length + 14))
 		.map(|i| props.queue.get(i))
-		.map(|p| format!{"{}", p}).collect();
+		.map(|p| p.serialize()).collect();
 	if upcoming == "" {
 		upcoming = "None".to_string();
 	}

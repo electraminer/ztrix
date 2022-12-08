@@ -1,9 +1,9 @@
 
-use ztrix::game::game::Clear;
 use std::collections::HashSet;
 use ztrix::game::Action;
 use controller::input_handler::InputEvent;
 use controller::input_handler::ButtonEvent;
+use ztrix::game::game::Event;
 use ztrix::replay::Replay;
 use ztrix::game::MaybeActive;
 use user_prefs::UserPrefs;
@@ -62,7 +62,7 @@ pub struct ActionHandler {
 	entry_delay_timer: Duration,
 	frozen: bool,
 	moved: bool,
-	pub last_zone_clear: Option<Clear>,
+	pub last_zone_clear: Option<usize>,
 }
 
 impl ActionHandler {
@@ -113,12 +113,12 @@ impl ActionHandler {
 	}
 
 	fn spawn(&mut self, replay: &mut Replay) {
-		let clears = replay.update(Action::SpawnPiece(
-	    	self.irs(), self.ihs()));
-		if let Some(Clear::ZoneClear(_)) = clears.last() {
-			self.last_zone_clear = clears.last().cloned();
-			self.moved = true;
-		}
+		replay.update(Action::SpawnPiece(
+	    	self.irs(), self.ihs()),
+			&mut |e| if let Event::ZoneClear(l) = e {
+				self.last_zone_clear = Some(*l);
+				self.moved = true;
+			});
 		if replay.get_game().over {
 			self.moved = true;
 		}
@@ -160,35 +160,38 @@ impl ActionHandler {
     		PlayButton::Left => {
     			self.das_priority = DasDirection::Left;
     			self.das_timer = handling_settings.das_duration;
-    			replay.update(Action::MoveLeft);
+    			replay.update(Action::MoveLeft, &mut |_| ());
     		}
 		    PlayButton::Right => {
     			self.das_priority = DasDirection::Right;
     			self.das_timer = handling_settings.das_duration;
-    			replay.update(Action::MoveRight);
+    			replay.update(Action::MoveRight, &mut |_| ());
     		}
 		   	PlayButton::DownSlow => {
     			self.down_das_timer = handling_settings.down_das_duration;
-    			replay.update(Action::MoveDown);
+    			replay.update(Action::MoveDown, &mut |_| ());
     		}
 		    PlayButton::DownFast =>
 				for _ in 0..26 {
-					replay.update(Action::MoveDown);
+					replay.update(Action::MoveDown, &mut |_| ());
 				}
 		    PlayButton::Clockwise => {
 		    	replay.update(Action::Rotate(
-    				Rotation::Clockwise));
+    				Rotation::Clockwise), &mut |_| ());
 		    }
 		    PlayButton::Anticlockwise => {
 		    	replay.update(Action::Rotate(
-		    		Rotation::Anticlockwise));
+		    		Rotation::Anticlockwise), &mut |_| ());
 		    }
 		    PlayButton::Flip => {
-		    	replay.update(Action::Rotate(Rotation::Flip));
+		    	replay.update(Action::Rotate(Rotation::Flip), &mut |_| ());
 		    }
 		    PlayButton::Place => {
 		    	if !replay.get_game().over {
-			    	replay.update(Action::PlacePiece);
+			    	replay.update(Action::PlacePiece,
+						&mut |e| if let Event::ZoneClear(l) = e {
+							self.last_zone_clear = Some(*l);
+						});
 			    	replay.new_frame();
 			    	self.entry_delay_timer = handling_settings.entry_delay;
 					self.moved = false;
@@ -203,15 +206,20 @@ impl ActionHandler {
 		    }
 	    	PlayButton::Hold => {
 	    		if !replay.get_game().over {
-		    		replay.update(Action::HoldPiece(self.irs()));
+		    		replay.update(Action::HoldPiece(self.irs()),
+						&mut |e| if let Event::ZoneClear(l) = e {
+							self.last_zone_clear = Some(*l);
+						});
 		    		if replay.get_game().hold == None {
 			    		replay.new_frame();
 		    		}
 	    		}
 	    	}
 	    	PlayButton::Zone => {
-	    		let clears = replay.update(Action::ToggleZone);
-	    		self.last_zone_clear = clears.last().cloned();
+	    		replay.update(Action::ToggleZone,
+					&mut |e| if let Event::ZoneClear(l) = e {
+						self.last_zone_clear = Some(*l);
+					});
 	    	}
 	    	PlayButton::Undo => {
 	    		if self.moved || replay.get_frame() <= 1 {
@@ -225,11 +233,10 @@ impl ActionHandler {
 				self.moved = false;
 	    	}
 	    	PlayButton::Redo => {
-	    		if let Ok(clears) = replay.redo() {
-	    			if let Some(Clear::ZoneClear(_)) = clears.last() {
-	    				self.last_zone_clear = clears.last().cloned();
-	    			}
-	    		}
+	    		replay.redo(
+					&mut |e| if let Event::ZoneClear(l) = e {
+						self.last_zone_clear = Some(*l);
+					});
 	    		self.entry_delay_timer = handling_settings.entry_delay;
 	    		self.frozen = true;
 				self.moved = false;
@@ -237,7 +244,7 @@ impl ActionHandler {
 	    	PlayButton::RerollCurrent => {
 	    		let back = replay.get_game().queue.fill() + 1;
 	    		if replay.get_num_revealed() >= back {
-    				replay.reroll_backward(back);
+    				replay.reroll_backward(back, &mut |_| ());
 	    			self.entry_delay_timer = handling_settings.entry_delay;
 	    			self.frozen = true;
 					self.moved = false;
@@ -246,7 +253,7 @@ impl ActionHandler {
 	    	PlayButton::RerollNext(n) => {
 	    		let back = replay.get_game().queue.fill() + 1 - n;
 	    		if replay.get_num_revealed() >= back {
-    				replay.reroll_backward(back);
+    				replay.reroll_backward(back, &mut |_| ());
 	    			self.entry_delay_timer = handling_settings.entry_delay;
 	    			self.frozen = true;
 					self.moved = false;
@@ -294,11 +301,11 @@ impl ActionHandler {
 			match self.das() {
 				DasDirection::None => (),
 				DasDirection::Left => {
-					replay.update(Action::MoveLeft);
+					replay.update(Action::MoveLeft, &mut |_| ());
 					self.moved = true;
 				}
 				DasDirection::Right => {
-					replay.update(Action::MoveRight);
+					replay.update(Action::MoveRight, &mut |_| ());
 					self.moved = true;
 				}
 			}
@@ -313,7 +320,7 @@ impl ActionHandler {
 		while self.down_das_timer < duration {
 			self.down_das_timer += handling_settings.down_arr_duration;
 			if self.held.contains(&PlayButton::DownSlow) {
-				replay.update(Action::MoveDown);
+				replay.update(Action::MoveDown, &mut |_| ());
 				self.moved = true;
 			}
 			max_iter -= 1;
@@ -324,7 +331,7 @@ impl ActionHandler {
 		self.down_das_timer -= duration;
 		if self.held.contains(&PlayButton::DownFast) {
 			for _ in 0..26 {
-				replay.update(Action::MoveDown);
+				replay.update(Action::MoveDown, &mut |_| ());
 			}
 			self.moved = true;
 		}

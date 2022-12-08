@@ -1,8 +1,6 @@
 
 use std::collections::VecDeque;
 
-use yew_router::history::History;
-use yew_router::scope_ext::RouterScopeExt;
 use ztrix::game::MaybeActive;
 
 use component::keyboard_interface::KeyboardInterface;
@@ -14,7 +12,6 @@ use controller::input_handler::ButtonEvent;
 use controller::input_handler::ButtonHandler;
 use controller::input_handler::TimeHandler;
 use controller::action_handler::ActionHandler;
-use component::router::Route;
 
 use component::game::GameComponent;
 
@@ -22,8 +19,8 @@ use controller::input_handler::InputEvent;
 
 use yew::prelude::*;
 
-use ztrix::game::Game;
 use ztrix::game::Mino;
+use ztrix::puzzle::Puzzle;
 use ztrix::replay::Replay;
 
 use user_prefs::UserPrefs;
@@ -128,7 +125,7 @@ pub enum Msg {
 #[derive(Default)]
 pub struct Props {
 	#[prop_or_default]
-	pub game: Game,
+	pub puzzle: Puzzle,
 }
 
 pub struct PlayInterface {
@@ -146,7 +143,7 @@ impl Component for PlayInterface {
     fn create(ctx: &Context<Self>) -> Self {
 		let link = ctx.link().clone();
         Self {
-        	replay: Replay::new(ctx.props().game.clone()),
+        	replay: Replay::new(ctx.props().puzzle.clone(), &mut |_| ()),
 			button_handler: ButtonHandler::new(),
 			time_handler: TimeHandler::new(),
         	action_handler: ActionHandler::new(),
@@ -164,9 +161,9 @@ impl Component for PlayInterface {
         			|e: ButtonEvent<String>|
         				Msg::KeyButton(e))}>
             	<GameComponent
-            		game={self.replay.get_game().clone()}
+            		puzzle={self.replay.get_puzzle().clone()}
             		num_revealed={self.replay.get_num_revealed()}
-            		last_clear={self.action_handler.last_zone_clear.clone()}
+            		last_zone_clear={self.action_handler.last_zone_clear}
 	      			top_left={{ html! {
 						<ButtonComponent
 							onbutton={ctx.link().batch_callback(
@@ -189,10 +186,6 @@ impl Component for PlayInterface {
 		        		</ButtonComponent>
 	      				}}}
 		        	bottom_left={{html! { <>
-		        		<p><strong>{"FRAME"}</strong></p>
-		        		<p><strong>
-		        			{self.replay.get_frame()}
-		        		</strong></p>
 		        		{button_bindings.left_buttons
 			            	.iter().map(|b| {
 			            		let button = b.clone();
@@ -226,7 +219,7 @@ impl Component for PlayInterface {
         }
     }
 
-       fn update(&mut self, ctx: &Context<Self>,
+       fn update(&mut self, _ctx: &Context<Self>,
     		msg: Msg) -> bool {
     	let user_prefs = UserPrefs::get();
     	let key_bindings = &user_prefs.key_bindings;
@@ -265,21 +258,23 @@ impl Component for PlayInterface {
 					self.replay.undo();
 				}
 				self.replay.revert();
-				let history = ctx.link().history()
-					.expect("should be a history");
-				history.push(Route::ConfigGame {
-					game: self.replay.get_game().clone(),
-				});
+				
+				let window = web_sys::window()
+					.expect("should be a window");
+				let url = "/config";
+				window.open_with_url_and_target(
+					&url, "_blank")
+					.expect("should be able to open url");
 				return false;
-    		}
+			}
     	};
     	if let InputEvent::Button(ButtonEvent::Release(
     		PlayButton::Edit)) = event {
 			self.replay.revert();
-			let mut game = self.replay.get_game().clone();
+			let mut puzzle = self.replay.get_puzzle().clone();
 			let mut queue = VecDeque::new();
-			while let Ok(_) = self.replay.redo() {
-				if *self.replay.get_game() == game {
+			while self.replay.redo(&mut |_| ()) {
+				if *self.replay.get_puzzle() == puzzle {
 					self.replay.undo();
 					break;
 				}
@@ -302,13 +297,13 @@ impl Component for PlayInterface {
 				self.replay.undo();
 			}
 			queue.pop_back();
-			game.piece = game.get_current().and_then(
+			puzzle.game.piece = puzzle.game.get_current().and_then(
 				|p| Some(MaybeActive::Inactive(p)));
-			if queue.len() > game.queue.fill() {
-					game.queue.pieces = queue;
-					game.queue.rando = rando;
+			if queue.len() > puzzle.game.queue.fill() {
+				puzzle.game.queue.pieces = queue;
+				puzzle.game.queue.rando = rando;
 				}
-			for row in game.board.matrix.iter_mut() {
+			for row in puzzle.game.board.matrix.iter_mut() {
 				for mino in row.iter_mut() {
 					*mino = match mino {
 						None => None,
@@ -316,10 +311,10 @@ impl Component for PlayInterface {
 					}
 				}
 			}
-			game.has_held = false;
+			puzzle.game.has_held = false;
 			let window = web_sys::window()
 				.expect("should be a window");
-			let url = format!{"/edit/{}", game};
+			let url = format!{"/edit/{}", puzzle};
 			window.open_with_url_and_target(
 				&url, "_blank")
 				.expect("should be able to open url");

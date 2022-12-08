@@ -1,11 +1,10 @@
-use crate::serialize::FromChars;
+use crate::serialize::DeserializeError;
+use crate::serialize::SerializeUrlSafe;
 use crate::position::Rotation;
 use crate::position::Vector;
 
 extern crate enumset;
 use enumset::EnumSetType;
-
-use std::fmt;
 
 #[derive(Debug, EnumSetType, Hash)]
 pub enum PieceType {
@@ -73,26 +72,22 @@ impl PieceType {
 	}
 }
 
-impl fmt::Display for PieceType {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		let chr = match self {
-			PieceType::I => 'I',
-			PieceType::O => 'O',
-			PieceType::S => 'S',
-			PieceType::Z => 'Z',
-			PieceType::J => 'J',
-			PieceType::L => 'L',
-			PieceType::T => 'T',
-		};
-		write!(f, "{}", chr)
-	}
-}
 
-impl FromChars for PieceType {
-	fn from_chars<I>(chars: &mut I) -> Result<Self, ()>
-	where 	I: Iterator<Item = char>,
-			Self: Sized {
-		Ok(match chars.next().ok_or(())? {
+impl SerializeUrlSafe for PieceType {
+	fn serialize(&self) -> String {
+		match self {
+			PieceType::I => "I",
+			PieceType::O => "O",
+			PieceType::S => "S",
+			PieceType::Z => "Z",
+			PieceType::J => "J",
+			PieceType::L => "L",
+			PieceType::T => "T",
+		}.to_owned()
+	}
+
+	fn deserialize(input: &mut crate::serialize::DeserializeInput) -> Result<Self, crate::serialize::DeserializeError> {
+		Ok(match input.next()? {
 			'I' | 'i' => PieceType::I,
 			'O' | 'o' => PieceType::O,
 			'S' | 's' => PieceType::S,
@@ -100,7 +95,7 @@ impl FromChars for PieceType {
 			'J' | 'j' => PieceType::J,
 			'L' | 'l' => PieceType::L,
 			'T' | 't' => PieceType::T,
-			_ => return Err(())
+			_ => return Err(DeserializeError::new("PieceTypes should be represented by I, O, S, Z, J, L, or T.")),
 		})
 	}
 }

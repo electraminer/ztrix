@@ -1,4 +1,5 @@
-use crate::game::game::Clear;
+use crate::game::game::Event;
+use crate::puzzle::Puzzle;
 use std::collections::HashMap;
 use rand::RngCore;
 
@@ -41,36 +42,41 @@ impl Info {
 
 pub struct Replay {
 	current: Vec<Action>,
-	choices: HashMap<Game, Vec<Action>>,
-	game: Game,
-	game_history: Vec<Game>,
+	choices: HashMap<Puzzle, Vec<Action>>,
+	puzzle: Puzzle,
+	puzzle_history: Vec<Puzzle>,
 	info: Info,
 	info_history: Vec<usize>,
 }
 
 impl Replay {
-	pub fn new(game: Game) -> Self {
+	pub fn new<F>(puzzle: Puzzle, event_handler: &mut F) -> Self
+    where   F: FnMut(&Event) {
 		let info = Info::new();
 		let index = info.index;
 		let mut replay = Self {
 			current: Vec::new(),
 			choices: HashMap::new(),
-			game: game.clone(),
-			game_history: vec![game],
+			puzzle: puzzle.clone(),
+			puzzle_history: vec![puzzle],
 			info: info,
 			info_history: vec![index],
 		};
-		replay.update(Action::Init);
+		replay.update(Action::Init, event_handler);
 		replay.new_frame();
 		replay
 	}
 
+	pub fn get_puzzle(&self) -> &Puzzle {
+		&self.puzzle
+	}
+
 	pub fn get_game(&self) -> &Game {
-		&self.game
+		self.puzzle.get_game()
 	}
 
 	pub fn get_frame(&self) -> usize {
-		self.game_history.len() - 1
+		self.puzzle_history.len() - 1
 	}
 
 	pub fn get_num_revealed(&self) -> usize {
@@ -79,7 +85,7 @@ impl Replay {
 
 	pub fn revert(&mut self) {
 		self.current.clear();
-		self.game = self.game_history.last()
+		self.puzzle = self.puzzle_history.last()
 			.expect("there should be a previous state")
 			.clone();
 	}
@@ -88,13 +94,13 @@ impl Replay {
 		if self.current.len() == 0 {
 			return;
 		}
-		let game = self.game_history.last()
+		let puzzle = self.puzzle_history.last()
 			.expect("there should be a previous state")
 			.clone();
 		let choice = std::mem::replace(
 			&mut self.current, Vec::new());
-		self.choices.insert(game, choice);
-		self.game_history.push(self.game.clone());
+		self.choices.insert(puzzle, choice);
+		self.puzzle_history.push(self.puzzle.clone());
 		self.info_history.push(self.info.index);
 	}
 
@@ -103,8 +109,8 @@ impl Replay {
 			return;
 		}
 		self.current.clear();
-		self.game_history.pop();
-		self.game = self.game_history.last()
+		self.puzzle_history.pop();
+		self.puzzle = self.puzzle_history.last()
 			.expect("there should be a previous state")
 			.clone();
 		self.info_history.pop();
@@ -113,30 +119,28 @@ impl Replay {
 			.clone();
 	}
 
-	pub fn redo(&mut self) -> Result<Vec<Clear>, ()> {
-		let game = self.game_history.last()
+	pub fn redo<F>(&mut self, event_handler: &mut F) -> bool
+    where   F: FnMut(&Event) {
+		let puzzle = self.puzzle_history.last()
 			.expect("there should be a previous state")
 			.clone();
-		if let Some(choice) = self.choices.get(&game) {
-			let mut clears = Vec::new();
+		if let Some(choice) = self.choices.get(&puzzle) {
 			self.current.clear();
-			self.game = game;
+			self.puzzle = puzzle;
 			for action in choice.iter() {
-				clears.append(&mut
-					self.game.update(*action, &mut self.info));
+				self.puzzle.update(*action, &mut self.info, event_handler);
 			}
-			self.game_history.push(self.game.clone());
+			self.puzzle_history.push(self.puzzle.clone());
 			self.info_history.push(self.info.index);
-			Ok(clears)
-		} else {
-			Err(())
+			return true;
 		}
+		false
 	}
 
-	pub fn update(&mut self, action: Action)
-		-> Vec<Clear> {
+	pub fn update<F>(&mut self, action: Action, event_handler: &mut F)
+    where   F: FnMut(&Event) {
 		self.current.push(action);
-		let clears = self.game.update(action, &mut self.info);
+		let clears = self.puzzle.update(action, &mut self.info, event_handler);
 		let index = self.info_history.last()
 			.expect("there should be a previous state")
 			.clone();
@@ -150,7 +154,8 @@ impl Replay {
 		self.info.info[self.info.index + forward] += 1;
 	}
 
-	pub fn reroll_backward(&mut self, backward: usize) {
+	pub fn reroll_backward<F>(&mut self, backward: usize, event_handler: &mut F)
+    where   F: FnMut(&Event) {
 		if backward > self.info.index {
 			return;
 		}
@@ -158,14 +163,14 @@ impl Replay {
 		let mut choices = Vec::new();
 		while self.info.index > target_index {
 			self.undo();
-			choices.push(self.choices.get(&self.game)
+			choices.push(self.choices.get(&self.puzzle)
 				.expect("should have saved actions")
 				.clone());
 		}
 		self.reroll_forward(target_index - self.info.index);
 		for choice in choices.iter().rev() {
 			for action in choice.iter() {
-				self.update(*action);
+				self.update(*action, event_handler);
 			}
 			self.new_frame();
 		}

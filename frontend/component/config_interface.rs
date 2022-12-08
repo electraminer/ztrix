@@ -3,7 +3,6 @@ use wasm_bindgen::JsCast;
 use web_sys::HtmlSelectElement;
 use instant::Duration;
 use component::field_config::FieldConfig;
-use ztrix::game::Game;
 use yew_router::history::History;
 use yew_router::scope_ext::RouterScopeExt;
 
@@ -49,8 +48,6 @@ pub enum Msg {
 #[derive(Properties, PartialEq)]
 #[derive(Default)]
 pub struct Props {
-	#[prop_or_default]
-	pub game: Game,
 }
 
 pub struct ConfigInterface {
@@ -92,7 +89,6 @@ impl Component for ConfigInterface {
 	}
 
 	fn view(&self, ctx: &Context<Self>) -> Html {
-		let game = ctx.props().game.clone();
      	let history = ctx.link().history()
      		.expect("should be a history");
 		html! {
@@ -127,9 +123,7 @@ impl Component for ConfigInterface {
 							onbutton={Callback::from(
 								move |e: ButtonEvent<()>|
 									if let ButtonEvent::Press(_) = e {
-										history.push(Route::AboutGame {
-											game: game.clone(),
-										});
+										history.push(Route::About);
 									})}>
 							<img src="/assets/help.png" alt="About"/>
 						</ButtonComponent>
@@ -398,16 +392,12 @@ impl Component for ConfigInterface {
 				UserPrefs::set(self.user_prefs.clone());
 				let history = ctx.link().history()
 					.expect("should be a history");
-				history.push(Route::GameGame {
-					game: ctx.props().game.clone()
-				})
+				history.push(Route::Puzzle);
 			}
 			Msg::Cancel => {
 				let history = ctx.link().history()
 					.expect("should be a history");
-				history.push(Route::GameGame {
-					game: ctx.props().game.clone()
-				})
+				history.push(Route::Puzzle);
 			}
 			Msg::RevertDefault => {
 				self.user_prefs.key_bindings = KeyBindings::default();

@@ -1,9 +1,8 @@
-use crate::serialize::FromChars;
+use crate::serialize::DeserializeError;
+use crate::serialize::SerializeUrlSafe;
 use std::ops::Add;
 use std::ops::Neg;
 use std::ops::Sub;
-
-use std::fmt;
 
 #[derive(Debug, Copy, Clone, Eq, Hash, PartialEq)]
 pub enum Rotation {
@@ -62,28 +61,23 @@ impl Sub for Rotation {
 	}
 }
 
-impl fmt::Display for Rotation {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		let chr = match self {
-			Rotation::Zero => '0',
-			Rotation::Clockwise => 'C',
-			Rotation::Flip => '2',
-			Rotation::Anticlockwise => 'A',
-		};
-		write!(f, "{}", chr)
+impl SerializeUrlSafe for Rotation {
+	fn serialize(&self) -> String {
+		match self {
+			Self::Zero => "0",
+			Self::Clockwise => "C",
+			Self::Flip => "2",
+			Self::Anticlockwise => "A",
+		}.to_owned()
 	}
-}
 
-impl FromChars for Rotation {
-	fn from_chars<I>(chars: &mut I) -> Result<Self, ()>
-	where 	I: Iterator<Item = char>,
-			Self: Sized {
-		Ok(match chars.next().ok_or(())? {
-			'0' => Rotation::Zero,
-			'C' => Rotation::Clockwise,
-			'2' => Rotation::Flip,
-			'A' => Rotation::Anticlockwise,
-			_ => return Err(())
+	fn deserialize(input: &mut crate::serialize::DeserializeInput) -> Result<Self, crate::serialize::DeserializeError> {
+		Ok(match input.next()? {
+			'0' => Self::Zero,
+			'C' => Self::Clockwise,
+			'2' => Self::Flip,
+			'A' => Self::Anticlockwise,
+			_ => return Err(DeserializeError::new("Rotation should be represented by 0, C, 2, or A.")),
 		})
 	}
 }

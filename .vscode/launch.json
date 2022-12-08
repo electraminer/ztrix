@@ -1,0 +1,22 @@
+{
+    "configurations": [
+        {
+            "type": "firefox",
+            "request": "launch",
+            "reAttach": true,
+            "name": "Serve localhost",
+            "preLaunchTask": "serve-localhost",
+            "url": "http://localhost/",
+            "webRoot": "${workspaceFolder}"
+        },
+        {
+            "type": "firefox",
+            "request": "launch",
+            "reAttach": true,
+            "name": "Serve IP",
+            "preLaunchTask": "serve-ip",
+            "url": "http://localhost/",
+            "webRoot": "${workspaceFolder}"
+        },
+    ]
+}

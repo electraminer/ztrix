@@ -1,12 +1,10 @@
 
-use crate::serialize::FromChars;
+use crate::serialize::SerializeUrlSafe;
 use crate::game::PieceType;
 use crate::replay::Info;
 
 use enumset::EnumSet;
 use enumset::EnumSetIter;
-
-use std::fmt;
 
 #[derive(Clone, Eq, Hash, PartialEq)]
 pub struct BagRandomizer {
@@ -35,27 +33,16 @@ impl BagRandomizer {
 	}
 }
 
-impl fmt::Display for BagRandomizer {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		for piece in self.set.iter() {
-			write!(f, "{}", piece)?;
-		}
-		write!(f, ".")
+impl SerializeUrlSafe for BagRandomizer {
+	fn serialize(&self) -> String {
+		let vec: Vec<PieceType> = self.set.iter().collect();
+		vec.serialize()
 	}
-}
-
-impl FromChars for BagRandomizer {
-	fn from_chars<I>(chars: &mut I) -> Result<Self, ()>
-	where 	I: Iterator<Item = char>,
-			Self: Sized {
-		let mut chars = chars.peekable();
-		let mut set = EnumSet::empty();
-		while *chars.peek().ok_or(())? != '.' {
-			let piece = PieceType::from_chars(&mut chars)?;
-			set.insert(piece);
-		}
+	
+	fn deserialize(input: &mut crate::serialize::DeserializeInput) -> Result<Self, crate::serialize::DeserializeError> {
+		let vec: Vec<PieceType> = Vec::deserialize(input)?;
 		Ok(BagRandomizer {
-			set: set,
+			set: EnumSet::from_iter(vec.into_iter())
 		})
 	}
 }

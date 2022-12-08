@@ -1,13 +1,11 @@
 
-use crate::serialize::FromChars;
-use crate::serialize;
+use crate::serialize::DeserializeError;
+use crate::serialize::SerializeUrlSafe;
 use crate::game::Mino;
 use crate::position::Position;
 
 use std::ops::IndexMut;
 use std::ops::Index;
-
-use std::fmt;
 
 #[derive(Clone, Eq, Hash, PartialEq)]
 pub struct Board {
@@ -45,11 +43,14 @@ impl Board {
 		for y in 0..26 {
 			if self.matrix[y].iter().all(|m|
 					matches!(m, Some(_))) {
+				if !self.matrix[y].iter().all(|m|
+					matches!(m, Some(Mino::Gray))) {
+					cleared += 1;
+				}
 				for i in (0..y).rev() {
 					self.matrix[i+1] = self.matrix[i];
 				}
 				self.matrix[0] = [Some(Mino::Gray); 10];
-				cleared += 1;
 			}
 		}
 		cleared
@@ -72,74 +73,35 @@ impl IndexMut<Position> for Board {
 	}
 }
 
-impl fmt::Display for Board {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		for row in self.matrix.iter() {
-			if row.iter().all(|m| matches!(m, None)) {
-				write!(f, "E")?; // empty
-			} else if row.iter().all(|m|
-				matches!(m, Some(Mino::Gray))) {
-				write!(f, "F")?; // full
-			} else if row.iter().all(|m|
-				matches!(m, None | Some(Mino::Gray))) {
-				write!(f, "G")?; // grayscale
-				let mut bin = 0;
-				for mino in row.iter() {
-					bin *= 2;
-					if let Some(_) = mino {
-						bin += 1
-					}
-				}
-				serialize::write_b64_fixed(f, bin, 2)?;
+impl SerializeUrlSafe for Board {
+	fn serialize(&self) -> String {
+		self.matrix.iter().map(|row|
+			if row.iter().cloned().all(|m| m == None) {
+				"E".to_owned()
+			} else if row.iter().cloned().all(|m| m == Some(Mino::Gray)) {
+				"F".to_owned()
+			} else if row.iter().cloned().all(|m| m == None || m == Some(Mino::Gray)) {
+				let mut row = row.clone();
+				row.reverse();
+				format! {"G{}", row.map(|m| m == Some(Mino::Gray)).serialize()}
 			} else {
-				write!(f, "C")?; // color
-				for mino in row.iter() {
-					match mino {
-						None => write!(f, "_")?,
-						Some(mino) => write!(f, "{}", mino)?,
-					}
-				}
+				format! {"C{}", row.serialize()}
 			}
-		}
-		Ok(())
+		).collect()
 	}
-}
 
-impl FromChars for Board {
-	fn from_chars<I>(chars: &mut I) -> Result<Self, ()>
-	where 	I: Iterator<Item = char>,
-			Self: Sized {
-		let mut chars = chars.peekable();
+	fn deserialize(input: &mut crate::serialize::DeserializeInput) -> Result<Self, crate::serialize::DeserializeError> {
 		let mut matrix = [[None; 10]; 26];
 		for row in matrix.iter_mut() {
-			match chars.next().ok_or(())? {
+			match input.next()? {
 				'E' => *row = [None; 10],
 				'F' => *row = [Some(Mino::Gray); 10],
 				'G' => {
-					let mut bin = serialize::read_b64_fixed(
-						&mut chars, 2)?;
-					for mino in row.iter_mut().rev() {
-						*mino = match bin % 2 {
-							0 => None,
-							1 => Some(Mino::Gray),
-							_ => return Err(()),
-						};
-						bin /= 2;
-					}
+					*row = <[bool; 10]>::deserialize(input)?.map(|b| b.then_some(Mino::Gray));
+					row.reverse();
 				}
-				'C' => {
-					for mino in row.iter_mut() {
-						*mino = match chars.peek().ok_or(())? {
-							'_' => {
-								chars.next();
-								None
-							},
-							_ => Some(Mino::from_chars(
-								&mut chars)?),
-						}
-					}
-				}
-				_ => return Err(()),
+				'C' => *row = <[Option<Mino>; 10]>::deserialize(input)?,
+				_ => return Err(DeserializeError::new("Row encoding types should be represented by E, F, G, or C.")),
 			}
 		}
 		Ok(Board {

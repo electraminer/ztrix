@@ -1,8 +1,9 @@
 
 use std::collections::VecDeque;
-use ztrix::serialize::FromChars;
 use controller::input_handler::ButtonHandler;
 use user_prefs::UserPrefs;
+use ztrix::serialize::DeserializeInput;
+use ztrix::serialize::SerializeUrlSafe;
 use std::str::FromStr;
 use web_sys::HtmlInputElement;
 use component::keyboard_interface::KeyboardInterface;
@@ -17,6 +18,7 @@ use component::queue::QueueButton;
 use component::board::BoardMouseEvent;
 use crate::component::game::GameComponent;
 use crate::component::router::Route;
+use ztrix::puzzle::Puzzle;
 
 use yew::prelude::*;
 use serde::Serialize;
@@ -109,12 +111,12 @@ pub enum Msg {
 #[derive(Default)]
 pub struct Props {
 	#[prop_or_default]
-	pub game: Game,
+	pub puzzle: Puzzle,
 }
 
 pub struct EditInterface {
-	initial: Game,
-	game: Game,
+	initial: Puzzle,
+	puzzle: Puzzle,
 	brush: Option<Mino>,
 	input: NodeRef,
 	button_handler: ButtonHandler<EditButton>,
@@ -127,8 +129,8 @@ impl Component for EditInterface {
 	fn create(ctx: &Context<Self>) -> Self {
 		let props = ctx.props();
 		Self {
-			initial: props.game.clone(),
-			game: props.game.clone(),
+			initial: props.puzzle.clone(),
+			puzzle: props.puzzle.clone(),
 			brush: None,
 			input: NodeRef::default(),
 			button_handler: ButtonHandler::new(),
@@ -141,7 +143,7 @@ impl Component for EditInterface {
         		onkey={ctx.link().callback(
         			|e: ButtonEvent<String>|
         				Msg::KeyButton(e))}>
-	      		<GameComponent game={self.game.clone()}
+	      		<GameComponent puzzle={self.puzzle.clone()}
 	      			onboardmouse={ctx.link().callback(
 						move |e: BoardMouseEvent|
 							Msg::Draw(e))}
@@ -152,7 +154,7 @@ impl Component for EditInterface {
 		        		<p><strong>{"CURRENT"}</strong></p>
 		        		<hr class="spacer"/>
 		        		<PieceBoxComponent
-							piece={self.game.get_current()}
+							piece={self.puzzle.game.get_current()}
 							onbutton={ctx.link().callback(
 								|e: ButtonEvent<()>| Msg::Button(
 									e.map(|_| EditButton::SetCurrent)))}/>
@@ -271,7 +273,7 @@ impl Component for EditInterface {
 			Msg::Draw(e) => {
 				match e {
 					BoardMouseEvent::Press(pos) => {
-						let board = &mut self.game.board;
+						let board = &mut self.puzzle.game.board;
 						self.brush = match board[pos] {
 							Some(_) => None,
 							None => Some(Mino::Gray),
@@ -279,7 +281,7 @@ impl Component for EditInterface {
 						board[pos] = self.brush;
 					},
 					BoardMouseEvent::Move(pos) => {
-						let board = &mut self.game.board;
+						let board = &mut self.puzzle.game.board;
 						board[pos] = self.brush;
 					},
 					BoardMouseEvent::Release => (),
@@ -290,16 +292,16 @@ impl Component for EditInterface {
 		match event {
 			ButtonEvent::Press(b) => match b {
 				EditButton::SetHold => {
-					let hold = &mut self.game.hold;
+					let hold = &mut self.puzzle.game.hold;
 					*hold = match *hold {
 						Some(PieceType::T) => None,
 						Some(p) => Some(cycle_piece(p)),
 						None => Some(PieceType::I),
 					};
-					update_bag(&mut self.game, 0);
+					update_bag(&mut self.puzzle.game, 0);
 				},
 				EditButton::SetCurrent => {
-					let piece = &mut self.game.piece;
+					let piece = &mut self.puzzle.game.piece;
 					*piece = match piece {
 						Some(p) => match p.get_type() {
 							PieceType::T => None,
@@ -309,21 +311,21 @@ impl Component for EditInterface {
 						None => Some(MaybeActive::Inactive(
 							PieceType::I)),
 					};
-					update_bag(&mut self.game, 0);
+					update_bag(&mut self.puzzle.game, 0);
 				},
 				EditButton::SetNext(n) => {
-					let queue = &mut self.game.queue;
+					let queue = &mut self.puzzle.game.queue;
 					queue[n-1] = cycle_piece(queue[n-1]);
-					update_bag(&mut self.game, 0);
+					update_bag(&mut self.puzzle.game, 0);
 				},
 				EditButton::SetBagPos => {
-					update_bag(&mut self.game, 1);
+					update_bag(&mut self.puzzle.game, 1);
 				},
 				EditButton::ToggleHoldUsed => {
-					self.game.has_held = !self.game.has_held;
+					self.puzzle.game.has_held = !self.puzzle.game.has_held;
 				},
 				EditButton::ToggleZone => {
-					self.game.in_zone = !self.game.in_zone;
+					self.puzzle.game.in_zone = !self.puzzle.game.in_zone;
 				},
 				EditButton::Import => {
 					let input = self.input
@@ -337,7 +339,7 @@ impl Component for EditInterface {
 	    				"152.7.71.114/",
 	    				"localhost/", "/", ""];
 	    			let prefix3 = vec![
-	    				"game/", "play/", "edit/", ""];
+	    				"game/", "play/", "edit/", "puzzle/", ""];
 	    			let mut code = None;
 	    			for p1 in prefix1.iter() {
 	    				for p2 in prefix2.iter() {
@@ -350,15 +352,17 @@ impl Component for EditInterface {
 	    				}
 	    			}
 	    			match code.and_then(|c|
-	    				Game::from_str(c).ok()) {
-	    				Some(game) => {
-	    					input.set_custom_validity("");
-	    					self.game = game;
+	    				Puzzle::from_str(c).ok()) {
+	    				Some(puzzle) => {
+	    					self.puzzle = puzzle;
 	    				}
-	    				None => {
-	    					input.set_custom_validity(
-	    						"Not a valid link!");
-	    				}
+	    				None => match code.and_then(|c|
+							Game::from_str(c).ok()) {
+							Some(game) => {
+								self.puzzle = Puzzle::new(game);
+							}
+							None => (),
+						}
 	    			}
 				},
 				EditButton::Export => {
@@ -366,7 +370,7 @@ impl Component for EditInterface {
 						.cast::<HtmlInputElement>()
 		    			.expect("element should be an input");
 		    		let value = format!{
-		    			"https://ztrix-game.web.app/game/{}", self.game};
+		    			"https://ztrix-game.web.app/puzzle/{}", self.puzzle};
 		    		input.set_value(&value);
 					let window = web_sys::window()
 						.expect("should be a window");
@@ -376,27 +380,26 @@ impl Component for EditInterface {
 					}
 				},
 				EditButton::Revert =>
-					self.game = self.initial.clone(),
+					self.puzzle = self.initial.clone(),
 				EditButton::EraseAll =>
-					self.game = Game::default(),
+					self.puzzle = Puzzle::default(),
 				_ => (),
 			}
 			ButtonEvent::Release(b) => match b {
 				EditButton::SetQueue => {
-					let queue = &mut self.game.queue;
+					let queue = &mut self.puzzle.game.queue;
 					let start_fill = queue.fill();
 					let string = queue.pieces.iter()
-						.map(|p| format!{"{}", p})
+						.map(|p| p.serialize())
 						.collect::<Vec<String>>().join("");
 					let string = web_sys::window()
 						.expect("should be a window")
 						.prompt_with_message_and_default(
 							"Set Queue: ", &string)
 						.unwrap_or(None).unwrap_or(string);
-					let mut chars = string.chars();
 					queue.pieces = VecDeque::new();
-					while let Ok(p) = PieceType::from_chars(
-						&mut chars) {
+					let mut input = DeserializeInput::from(&string);
+					while let Ok(p) = PieceType::deserialize(&mut input) {
 						queue.pieces.push_back(p);
 					}
 					let end_fill = queue.fill();
@@ -405,19 +408,19 @@ impl Component for EditInterface {
 					} else {
 						7 - (end_fill - start_fill) % 7
 					};
-					update_bag(&mut self.game, advance);
+					update_bag(&mut self.puzzle.game, advance);
 				}		
 				EditButton::Play => {
 					let history = ctx.link().history()
 						.expect("should be a history");
 					history.replace(
-						Route::EditGame {
-							game: self.game.clone()
+						Route::EditPuzzle {
+							puzzle: self.puzzle.clone()
 						}
 					);
 					history.push(
-						Route::GameGame {
-							game: self.game.clone()
+						Route::PuzzlePuzzle {
+							puzzle: self.puzzle.clone()
 						}
 					)
 				}

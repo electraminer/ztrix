@@ -1,14 +1,12 @@
 
 use std::collections::VecDeque;
-use crate::serialize::FromChars;
+use crate::serialize::SerializeUrlSafe;
 use std::ops::Index;
 use std::ops::IndexMut;
 use crate::game::PieceType;
 
 use crate::game::BagRandomizer;
 use crate::replay::Info;
-use crate::serialize;
-use std::fmt;
 
 #[derive(Clone, Eq, Hash, PartialEq)]
 pub struct Queue {
@@ -61,47 +59,28 @@ impl IndexMut<usize> for Queue {
 	}
 }
 
-impl fmt::Display for Queue {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "Q")?;
-		serialize::write_b64_var(f, self.length)?;
-		for piece in self.pieces.iter() {
-			write!(f, "{}", piece)?;
+impl SerializeUrlSafe for Queue {
+	fn serialize(&self) -> String {
+		format! { "Q{}{}{}",
+			self.length.serialize(),
+			self.pieces.iter().cloned().collect::<Vec<PieceType>>().serialize(),
+			self.rando.serialize(),
 		}
-		write!(f, ".{}", self.rando)
 	}
-}
 
-impl FromChars for Queue {
-	fn from_chars<I>(chars: &mut I) -> Result<Self, ()>
-	where 	I: Iterator<Item = char>,
-			Self: Sized {
-		let mut chars = chars.peekable();
-		if *chars.peek().ok_or(())? == 'Q' {
-			chars.next();
-			let length = serialize::read_b64_var(&mut chars)?;
-			let mut pieces = VecDeque::new();
-			while *chars.peek().ok_or(())? != '.' {
-				pieces.push_back(
-					PieceType::from_chars(&mut chars)?);
+	fn deserialize(input: &mut crate::serialize::DeserializeInput) -> Result<Self, crate::serialize::DeserializeError> {
+		Ok(if input.next_if('Q')? {
+			Self {
+				length: usize::deserialize(input)?,
+				pieces: Vec::deserialize(input)?.iter().cloned().collect::<VecDeque<PieceType>>(),
+				rando: BagRandomizer::deserialize(input)?,
 			}
-			chars.next();
-			Ok(Queue {
-				length: length,
-				pieces: pieces,
-				rando: BagRandomizer::from_chars(&mut chars)?,
-			})
 		} else {
-			let mut pieces = VecDeque::new();
-			for _ in 0..4 {
-				pieces.push_back(
-					PieceType::from_chars(&mut chars)?);
-			}
-			Ok(Queue {
+			Self {
 				length: 4,
-				pieces: pieces,
-				rando: BagRandomizer::from_chars(&mut chars)?,
-			})
-		}
+				pieces: <[PieceType; 4]>::deserialize(input)?.iter().cloned().collect::<VecDeque<PieceType>>(),
+				rando: BagRandomizer::deserialize(input)?,
+			}
+		})
 	}
 }

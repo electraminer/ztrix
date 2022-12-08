@@ -1,7 +1,5 @@
-use crate::serialize::FromChars;
+use crate::serialize::SerializeUrlSafe;
 use crate::game::PieceType;
-
-use std::fmt;
 
 #[derive(Debug, Copy, Clone, Eq, Hash, PartialEq)]
 pub enum Mino {
@@ -9,26 +7,19 @@ pub enum Mino {
 	Gray,
 }
 
-impl fmt::Display for Mino {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl SerializeUrlSafe for Mino {
+	fn serialize(&self) -> String {
 		match self {
-			Mino::Piece(piece) => write!(f, "{}", piece),
-			Mino::Gray => write!(f, "G"),
+			Mino::Piece(piece) => piece.serialize(),
+			Mino::Gray => "G".to_owned(),
 		}
 	}
-}
 
-impl FromChars for Mino {
-	fn from_chars<I>(chars: &mut I) -> Result<Self, ()>
-	where 	I: Iterator<Item = char>,
-			Self: Sized {
-		let mut chars = chars.peekable();
-		Ok(match chars.peek().ok_or(())? {
-			'G' => {
-				chars.next();
-				Mino::Gray
-			},
-			_ => Mino::Piece(PieceType::from_chars(&mut chars)?),
+	fn deserialize(input: &mut crate::serialize::DeserializeInput) -> Result<Self, crate::serialize::DeserializeError> {
+		Ok(if input.next_if('G')? {
+			Mino::Gray
+		} else {
+			Mino::Piece(PieceType::deserialize(input)?)
 		})
 	}
 }

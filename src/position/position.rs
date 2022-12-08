@@ -1,12 +1,9 @@
-use crate::serialize::FromChars;
-use crate::serialize;
+use crate::serialize::SerializeUrlSafe;
 use crate::position::Vector;
 
 use std::ops::Add;
 use std::ops::Neg;
 use std::ops::Sub;
-
-use std::fmt;
 
 #[derive(Debug, Copy, Clone, Eq, Hash, PartialEq)]
 pub struct Position {
@@ -37,54 +34,18 @@ impl Sub<Vector> for Position {
 	}
 }
 
-impl fmt::Display for Position {
-
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		let x = if self.x < 0 {
-			write!(f, "-")?;
-			-(self.x + 1) as usize
-		} else {
-			self.x as usize
-		};
-		serialize::write_b64_var(f, x)?;
-		let y = if self.y < 0 {
-			write!(f, "-")?;
-			-(self.y + 1) as usize
-		} else {
-			self.y as usize
-		};
-		serialize::write_b64_var(f, y)
+impl SerializeUrlSafe for Position {
+	fn serialize(&self) -> String {
+		format! { "{}{}",
+			self.x.serialize(),
+			self.y.serialize(),
+		}
 	}
-}
 
-impl FromChars for Position {
-	fn from_chars<I>(chars: &mut I) -> Result<Self, ()>
-	where 	I: Iterator<Item = char>,
-			Self: Sized {
-		let mut chars = chars.peekable();
-		Ok(Position {
-			x: match chars.peek().ok_or(())? {
-				'-' => {
-					chars.next();
-					let i: i32 =
-						serialize::read_b64_var(&mut chars)?
-						.try_into().map_err(|_| ())?;
-					-i - 1
-				},
-				_ => serialize::read_b64_var(&mut chars)?
-						.try_into().map_err(|_| ())?,
-			},	
-			y: match chars.peek().ok_or(())? {
-				'-' => {
-					chars.next();
-					let i: i32 =
-						serialize::read_b64_var(&mut chars)?
-						.try_into().map_err(|_| ())?;
-					-i - 1
-				},
-				_ => serialize::read_b64_var(&mut chars)?
-						.try_into().map_err(|_| ())?,
-			}
+	fn deserialize(input: &mut crate::serialize::DeserializeInput) -> Result<Self, crate::serialize::DeserializeError> {
+		Ok(Self {
+			x: i32::deserialize(input)?,
+			y: i32::deserialize(input)?,
 		})
 	}
 }
