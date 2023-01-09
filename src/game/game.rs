@@ -1,8 +1,6 @@
 //use crate::serialize::FromChars;
 use std::str::FromStr;
-use crate::game::MaybeActive;
 
-use crate::replay::Info;
 use crate::position::Rotation;
 use crate::position::Vector;
 use crate::game::BagRandomizer;
@@ -29,7 +27,10 @@ pub enum Action {
 	PlacePiece,
 	HoldPiece(Rotation),
 	ToggleZone,
-	Init,
+}
+
+pub enum RevealAction {
+	Reveal(usize),
 }
 
 #[derive(Hash, Eq, PartialEq, Clone)]
@@ -51,7 +52,7 @@ pub enum Event {
 
 #[derive(Clone, Eq, Hash, PartialEq)]
 pub struct Game {
-	pub piece: Option<MaybeActive>,
+	pub piece: Option<ActivePiece>,
 	pub queue: Queue,
 	pub hold: Option<PieceType>,
 	pub has_held: bool,
@@ -61,29 +62,10 @@ pub struct Game {
 }
 
 impl Game {
-	pub fn init(&mut self, info: &mut Info) {
-		self.queue.update(info);
-		if let None = self.piece {
-			self.piece = Some(
-				MaybeActive::Inactive(self.queue.next(info)));
-		}
-	}
-
-	pub fn get_current(&self) -> Option<PieceType> {
-		self.piece.as_ref().and_then(|p| Some(p.get_type()))
-	}
-
-	pub fn get_active(&self) -> Option<&ActivePiece> {
-		match &self.piece {
-			Some(MaybeActive::Active(p)) => Some(&p),
-			_ => None,
-		}
-	}
-
 	fn move_piece<F>(&mut self, vec: Vector, event_handler: &mut F)
 	where	F: FnMut(&Event) {
-		if let Some(MaybeActive::Active(active)) = &mut self.piece {
-			if active.try_move(&self.board, vec) {
+		if let Some(piece) = &mut self.piece {
+			if piece.try_move(&self.board, vec) {
 				event_handler(&Event::Move);
 			}
 		}
@@ -91,56 +73,85 @@ impl Game {
 
 	fn rotate_piece<F>(&mut self, rot: Rotation, event_handler: &mut F)
 	where	F: FnMut(&Event) {
-		if let Some(MaybeActive::Active(active)) = &mut self.piece {
-			if let Some(kick) = active.try_rotate(&self.board, rot) {
+		if let Some(piece) = &mut self.piece {
+			if let Some(kick) = piece.try_rotate(&self.board, rot) {
 				event_handler(&Event::Rotate(kick));
 			}
 		}
 	}
 
-	fn spawn<F>(&mut self, irs: Rotation, event_handler: &mut F)
+	fn create_piece<F>(&mut self, piece_type: PieceType, irs: Rotation, event_handler: &mut F)
+			-> Option<ActivePiece>
 	where	F: FnMut(&Event) {
-		if let Some(MaybeActive::Inactive(current)) = self.piece {
-			match ActivePiece::spawn(
-				&self.board, current, irs).or_else(|| {
-					if self.in_zone {
-						self.toggle_in_zone(event_handler);
-					}
-					ActivePiece::spawn(
-						&self.board, current, irs)
-				}) {
-				Some(a) => self.piece = Some(MaybeActive::Active(a)),
-				None => self.over = true,
-			}
+		if let Some(piece) = ActivePiece::spawn(&self.board, piece_type, irs) {
+			return Some(piece);
 		}
-		event_handler(&Event::Spawn);
+		if let Some(piece) = ActivePiece::spawn(&self.board, piece_type, Rotation::Zero) {
+			return Some(piece);
+		}
+
+		if self.in_zone {
+			self.toggle_in_zone(event_handler);
+		}
+
+		if let Some(piece) = ActivePiece::spawn(&self.board, piece_type, irs) {
+			return Some(piece);
+		}
+		if let Some(piece) = ActivePiece::spawn(&self.board, piece_type, Rotation::Zero) {
+			return Some(piece);
+		}
+
+		None
 	}
 
-	fn hold<F>(&mut self, irs: Rotation, info: &mut Info, event_handler: &mut F)
+	fn spawn<F>(&mut self, piece_type: PieceType, irs: Rotation, event_handler: &mut F)
+	where	F: FnMut(&Event) {
+		self.piece = self.create_piece(piece_type, irs, event_handler);
+		match self.piece {
+			Some(_) => event_handler(&Event::Spawn),
+			None => self.over = true,
+		}
+	}
+
+	fn hold<F>(&mut self, irs: Rotation, event_handler: &mut F) -> Result<(), RevealAction>
 	where	F: FnMut(&Event) {
 		if self.has_held {
-			return;
+			return Ok(());
 		}
-		if let Some(current) = self.get_current() {
-			self.has_held = true;
-			let swap = self.hold.unwrap_or_else(|| {
-				self.queue.next(info)
-			});
-			self.hold = Some(current);
-			self.piece = Some(MaybeActive::Inactive(swap));
-			self.spawn(irs, event_handler);
-		}
+
+		match self.piece {
+			Some(piece) => piece.get_type(),
+			None => self.queue.next().map_err(|seed| RevealAction::Reveal(seed))?,
+		};
+
+		let piece_to_hold = match self.get_current() {
+			None => {
+				let piece = self.queue.next()
+				self.piece = MaybeActive::Inactive(Some(piece));
+				piece
+			}
+			Some(piece) => piece,
+		};
+
+
+		let piece_to_swap_to = self.hold.or_else(|| self.queue.next().ok());
+
+		self.has_held = true;
+		self.hold = Some(piece_to_hold);
+		self.piece = MaybeActive::Inactive(piece_to_swap_to);
+		self.spawn(irs, event_handler);
+		Ok(())
 	}
 
-	fn hold_if_active<F>(&mut self, irs: Rotation, info: &mut Info,
+	fn hold_if_active<F>(&mut self, irs: Rotation,
 			event_handler: &mut F)
 	where	F: FnMut(&Event) {
 		if let Some(MaybeActive::Active(_)) = self.piece {
-			self.hold(irs, info, event_handler);
+			self.hold(irs, event_handler);
 		}
 	}
 
-	fn spawn_ihs<F>(&mut self, irs: Rotation, ihs: bool, info: &mut Info,
+	fn spawn_ihs<F>(&mut self, irs: Rotation, ihs: bool,
 			event_handler: &mut F)
 	where	F: FnMut(&Event) {
 		if !(self.has_held && ihs) {
@@ -151,11 +162,11 @@ impl Game {
 		}
 		self.has_held = false;
 		if ihs {
-			self.hold(irs, info, event_handler);
+			self.hold(irs, event_handler);
 		}
 	}
 
-	fn place<F>(&mut self, info: &mut Info, event_handler: &mut F)
+	fn place<F>(&mut self, event_handler: &mut F)
 	where	F: FnMut(&Event) {
 		if let Some(MaybeActive::Inactive(_)) = self.piece {
 			return;
@@ -197,28 +208,26 @@ impl Game {
 		}
 	}
 
-	pub fn update<F>(&mut self, action: Action, info: &mut Info,
-			event_handler: &mut F)
+	pub fn update<F>(&mut self, action: Action, event_handler: &mut F) -> Result<(), RevealAction>
 	where	F: FnMut(&Event) {
 		if self.over {
-			return;
+			return Ok(());
 		}
 		match action {
-			Action::MoveLeft =>
-				self.move_piece(Vector::ONE_LEFT, event_handler),
-			Action::MoveRight =>
-				self.move_piece(Vector::ONE_RIGHT, event_handler),
-			Action::MoveDown =>
-				self.move_piece(Vector::ONE_DOWN, event_handler),
+			Action::MoveLeft => self.move_piece(Vector::ONE_LEFT, event_handler),
+			Action::MoveRight => self.move_piece(Vector::ONE_RIGHT, event_handler),
+			Action::MoveDown => self.move_piece(Vector::ONE_DOWN, event_handler),
 			Action::Rotate(rot) => self.rotate_piece(rot, event_handler),
-			Action::SpawnPiece(irs, ihs) =>
-				self.spawn_ihs(irs, ihs, info, event_handler),
-			Action::PlacePiece => self.place(info, event_handler),
-			Action::HoldPiece(irs) =>
-				self.hold_if_active(irs, info, event_handler),
+			Action::SpawnPiece(irs, ihs) => self.spawn_ihs(irs, ihs, event_handler),
+			Action::PlacePiece => self.place(event_handler),
+			Action::HoldPiece(irs) => self.hold_if_active(irs, event_handler),
 			Action::ToggleZone => self.toggle_in_zone(event_handler),
-			Action::Init => self.init(info),
 		}
+		Ok(())
+	}
+
+	pub fn reveal(&mut self, action: RevealAction) {
+
 	}
 }
 

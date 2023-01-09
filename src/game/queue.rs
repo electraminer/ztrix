@@ -1,12 +1,13 @@
 
 use std::collections::VecDeque;
+use rand::RngCore;
+
 use crate::serialize::SerializeUrlSafe;
 use std::ops::Index;
 use std::ops::IndexMut;
 use crate::game::PieceType;
 
 use crate::game::BagRandomizer;
-use crate::replay::Info;
 
 #[derive(Clone, Eq, Hash, PartialEq)]
 pub struct Queue {
@@ -24,25 +25,20 @@ impl Queue {
 		}
 	}
 
-	pub fn fill(&self) -> usize {
+	pub fn get_num_revealed(&self) -> usize {
 		self.pieces.len()
 	}
 
-	pub fn get(&self, idx: usize) -> PieceType {
-		self.pieces[idx]
+	pub fn get(&self, idx: usize) -> Option<PieceType> {
+		self.pieces.get(idx).cloned()
 	}
 
-	pub fn update(&mut self, info: &mut Info) {
-		while self.fill() < self.length {
-			self.pieces.push_back(self.rando.next(info));
-		}
+	pub fn next(&mut self) -> Result<PieceType, usize> {
+		self.pieces.pop_front().ok_or(rand::thread_rng().next_u64() as usize)
 	}
 
-	pub fn next(&mut self, info: &mut Info) -> PieceType {
-		let next = self.pieces.pop_front().unwrap_or_else(
-			|| self.rando.next(info));
-		self.update(info);
-		next
+	pub fn reveal(&mut self, seed: usize) {
+		self.pieces.push_back(self.rando.next(seed));
 	}
 }
 

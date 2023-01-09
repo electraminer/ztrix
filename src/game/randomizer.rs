@@ -22,9 +22,10 @@ impl BagRandomizer {
 		self.set.iter()
 	}
 
-	pub fn next(&mut self, info: &mut Info) -> PieceType {
-		let options = self.options().collect();
-		let next = *info.choice(&options);
+	pub fn next(&mut self, seed: usize) -> PieceType {
+		let options: Vec<PieceType> = self.options().collect();
+		let choice = seed % options.len();
+		let next = options[choice];
 		self.set -= next;
 		if self.set.is_empty() {
 			self.set = EnumSet::all();

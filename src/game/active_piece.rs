@@ -15,31 +15,16 @@ pub struct ActivePiece {
 }
 
 impl ActivePiece {
-	pub fn spawn_unchecked(piece_type: PieceType, irs: Rotation)
-			-> ActivePiece {
+	pub fn spawn(board: &Board, piece_type: PieceType, irs: Rotation) -> Option<ActivePiece> {
 		let offset = piece_type.get_kicks(Rotation::Zero, irs)[0];
 		let min_y = piece_type.get_mino_vecs().iter()
 			.map(|v| v.rotate(irs).y + offset.y).min().unwrap_or(0);
-		ActivePiece {
+		let piece = ActivePiece {
 			piece_type: piece_type,
 			pos: Position::new(4, 19 - min_y) + offset,
 			rot: irs,
-		}
-	}
-
-	pub fn spawn(board: &Board, piece_type: PieceType,
-			irs: Rotation) -> Option<ActivePiece> {
-		let piece = ActivePiece::spawn_unchecked(
-				piece_type, irs);
-		if !piece.is_colliding(board) {
-			return Some(piece)
-		}
-		let piece = ActivePiece::spawn_unchecked(
-				piece_type, Rotation::Zero);
-		if !piece.is_colliding(board) {
-			return Some(piece)
-		}
-		None
+		};
+		(!piece.is_colliding(board)).then_some(piece)
 	}
 
 	pub fn get_type(&self) -> PieceType {
@@ -109,39 +94,6 @@ impl SerializeUrlSafe for ActivePiece {
 			piece_type: PieceType::deserialize(input)?,
 			pos: Position::deserialize(input)?,
 			rot: Rotation::deserialize(input)?,
-		})
-	}
-}
-
-#[derive(Clone, Eq, Hash, PartialEq)]
-pub enum MaybeActive {
-	Active(ActivePiece),
-	Inactive(PieceType),
-}
-
-impl MaybeActive {
-	pub fn get_type(&self) -> PieceType {
-		match self {
-			MaybeActive::Active(p) => p.get_type(),
-			MaybeActive::Inactive(p) => *p,
-		}
-	}
-}
-
-
-impl SerializeUrlSafe for MaybeActive {
-	fn serialize(&self) -> String {
-		match self {
-			MaybeActive::Active(piece) => format! {"A{}", piece.serialize()},
-			MaybeActive::Inactive(piece) => format! {"I{}", piece.serialize()},
-		}
-	}
-
-	fn deserialize(input: &mut crate::serialize::DeserializeInput) -> Result<Self, crate::serialize::DeserializeError> {
-		Ok(match input.next()? {
-			'A' => MaybeActive::Active(ActivePiece::deserialize(input)?),
-			'I' => MaybeActive::Inactive(PieceType::deserialize(input)?),
-			_ => return Err(DeserializeError::new("MaybeActive's type should be represented by A or I.")),
 		})
 	}
 }
