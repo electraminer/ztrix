@@ -175,4 +175,47 @@ impl Replay {
 			self.new_frame();
 		}
 	}
+
+	fn to_solution(&mut self) -> Solution {
+		let mut actions = Vec::new();
+
+		let initial = self.puzzle_history.last()
+			.expect("there should be a previous state")
+			.clone();
+		let mut puzzle = initial.clone();
+
+		let mut info = self.info.clone();
+		while let Some(choice) = self.choices.get(&puzzle) {
+			for action in choice.iter() {
+				puzzle.update(*action, &mut info, &mut |_| ());
+				actions.push(action.clone());
+			}
+		}
+
+		Solution {
+			puzzle: initial,
+			info: self.info.info[self.info.index..].to_vec(),
+			actions: actions
+		}
+	}
+
+	fn from_solution(solution: Solution) -> Self {
+		let mut replay = Self::new(solution.puzzle, &mut |_| ());
+
+		replay.info.info = solution.info;
+
+		for action in solution.actions {
+			replay.update(action, &mut |_| ());
+		}
+
+		replay
+	}
+
+
+}
+
+struct Solution {
+	puzzle: Puzzle,
+	info: Vec<u32>,
+    actions: Vec<Action>,
 }
