@@ -1,3 +1,4 @@
+
 use std::fmt;
 use std::str::FromStr;
 
@@ -5,6 +6,7 @@ use crate::condition::event::Conditions;
 use crate::game::Action;
 use crate::game::Game;
 use crate::game::game::Event;
+use crate::kirb_generator;
 use crate::replay::Info;
 use crate::serialize::DeserializeError;
 use crate::serialize::SerializeUrlSafe;
@@ -51,6 +53,10 @@ impl Puzzle {
     pub fn get_game(&self) -> &Game {
 		&self.game
 	}
+
+    pub fn generate_kirb_puzzle(difficulty: u32) -> Self {
+        kirb_generator::generate(difficulty)
+    }
 }
 
 impl Default for Puzzle {
