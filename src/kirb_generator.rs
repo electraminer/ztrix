@@ -123,7 +123,7 @@ fn can_spawn(board: &Board, piece: PieceType, irs: Rotation) -> bool {
 
 fn no_floating(board: &Board) -> bool {
     let mut lines_done = false;
-    for y in 0..24 {
+    for y in 0..26 {
         if board.matrix[y].iter().all(|x| x.is_some()) {
             if lines_done {
                 return false;
@@ -140,7 +140,7 @@ fn remove_piece(rng: &mut ThreadRng,
     let mut options = Vec::new();
     for r in 0..4 {
         let rot = Rotation::from_num_cw(r);
-        for y in 0..24 {
+        for y in 0..26 {
             for x in 0..10 {
                 let pos = Position::new(x, y);
                 let placement = ActivePiece {piece_type, pos, rot};
@@ -238,7 +238,7 @@ fn try_generate(rng: &mut ThreadRng, queue: &[PieceType]) -> Option<Board> {
 
 fn rate_board(board: &Board) -> usize {
     let mut score = 0;
-    for y in 0..24 {
+    for y in 0..26 {
         for x in 0..10 {
             let pos = Position::new(x, y);
             for dir in [Vector::ONE_LEFT, Vector::ONE_RIGHT,
