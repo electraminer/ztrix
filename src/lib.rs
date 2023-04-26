@@ -12,3 +12,5 @@ pub mod serialize;
 
 pub mod puzzle;
 pub mod condition;
+
+pub mod kirb_generator;

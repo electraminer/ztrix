@@ -42,6 +42,11 @@ pub enum Route {
     About,
     #[at("/help")]
     Help,
+
+    #[at("/random")]
+    Random,
+    #[at("/random/:difficulty")]
+    RandomDifficulty{ difficulty: u32 },
 }
 
 fn switch(route: &Route) -> Html {
@@ -82,6 +87,13 @@ fn switch(route: &Route) -> Html {
         },
         Route::Help => html! {
             <AboutInterface/>
+        },
+
+        Route::Random => html! {
+            <PlayInterface puzzle={Puzzle::generate_kirb_puzzle(2)}/>
+        },
+        Route::RandomDifficulty { difficulty } => html! {
+            <PlayInterface puzzle={Puzzle::generate_kirb_puzzle(*difficulty)}/>
         },
     }
 }
