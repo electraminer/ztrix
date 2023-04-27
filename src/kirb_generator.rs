@@ -149,6 +149,7 @@ fn remove_piece(rng: &mut ThreadRng,
                     let irs_list = [Rotation::Zero, Rotation::Anticlockwise, Rotation::Clockwise];
                     let mut iter = irs_list.into_iter().map(|irs| {
                         no_floating(&board) && can_spawn(&board, held, irs)
+                                && placement == placement.get_ghost(&board)
                                 && can_place(&board, placement.clone(), irs)
                     });
                     let is_valid = if req_no_irs {
@@ -266,7 +267,7 @@ fn default_board() -> Board {
 }
 
 pub fn generate(difficulty: u32) -> Puzzle {
-    let difficulty = (difficulty + 5) as usize;
+    let difficulty = (difficulty + 0) as usize;
 
     let mut rando = BagRandomizer::new();
     let mut info = Info::new();
