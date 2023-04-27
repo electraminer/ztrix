@@ -267,7 +267,7 @@ fn default_board() -> Board {
 }
 
 pub fn generate(difficulty: u32) -> Puzzle {
-    let difficulty = (difficulty + 0) as usize;
+    let difficulty = (difficulty + 5) as usize;
 
     let mut rando = BagRandomizer::new();
     let mut info = Info::new();
