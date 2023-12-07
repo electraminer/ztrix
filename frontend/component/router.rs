@@ -47,6 +47,11 @@ pub enum Route {
     Random,
     #[at("/random/:difficulty")]
     RandomDifficulty{ difficulty: u32 },
+    
+    #[at("/tsd")]
+    TSDPuzzle,
+    #[at("/20tsd")]
+    TwentyTSDPuzzle,
 }
 
 fn switch(route: &Route) -> Html {
@@ -94,6 +99,9 @@ fn switch(route: &Route) -> Html {
         },
         Route::RandomDifficulty { difficulty } => html! {
             <PlayInterface puzzle={Puzzle::generate_kirb_puzzle(*difficulty)}/>
+        },
+        Route::TSDPuzzle | Route::TwentyTSDPuzzle => html! {
+            <PlayInterface puzzle={Puzzle::generate_tsd_puzzle()}/>
         },
     }
 }

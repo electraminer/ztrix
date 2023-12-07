@@ -1,3 +1,4 @@
 fn main() {
-    ztrix::kirb_generator::generate(0);
+    let puzzle = ztrix::tsd_generator::generate();
+    println!("{}", puzzle);
 }

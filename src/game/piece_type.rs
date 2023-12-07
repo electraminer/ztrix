@@ -68,7 +68,11 @@ impl PieceType {
 			-> [Vector; 5] {
 		let start_offsets = self.get_offsets(start);
 		let end_offsets = self.get_offsets(start + rot);
-		start_offsets.zip(end_offsets).map(|(s, e)| s - e)
+		let mut kicks = [Vector::new(0, 0); 5];
+		for i in 0..5 {
+			kicks[i] = start_offsets[i] - end_offsets[i];
+		}
+		kicks
 	}
 }
 
