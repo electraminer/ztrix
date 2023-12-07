@@ -7,6 +7,7 @@ use crate::game::Action;
 use crate::game::Game;
 use crate::game::game::Event;
 use crate::kirb_generator;
+use crate::tsd_generator;
 use crate::replay::Info;
 use crate::serialize::DeserializeError;
 use crate::serialize::SerializeUrlSafe;
@@ -56,6 +57,10 @@ impl Puzzle {
 
     pub fn generate_kirb_puzzle(difficulty: u32) -> Self {
         kirb_generator::generate(difficulty)
+    }
+    
+    pub fn generate_tsd_puzzle() -> Self {
+        tsd_generator::generate()
     }
 }
 

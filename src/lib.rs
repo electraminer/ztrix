@@ -1,4 +1,3 @@
-#![feature(array_zip)]
 #![feature(array_try_map)]
 #![feature(iter_array_chunks)]
 
@@ -14,3 +13,4 @@ pub mod puzzle;
 pub mod condition;
 
 pub mod kirb_generator;
+pub mod tsd_generator;
